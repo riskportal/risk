@@ -4,7 +4,6 @@
 [![pypiv](https://img.shields.io/pypi/v/risk-network.svg)](https://pypi.python.org/pypi/risk-network)
 ![License](https://img.shields.io/badge/license-GPLv3-purple)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17257418.svg)](https://doi.org/10.5281/zenodo.17257418)
-![Downloads](https://img.shields.io/pypi/dm/risk-network)
 ![Tests](https://github.com/riskportal/risk/actions/workflows/ci.yml/badge.svg)
 
 **RISK** (Regional Inference of Significant Kinships) is a next-generation tool for biological network annotation and visualization. It integrates community detection algorithms, rigorous overrepresentation analysis, and a modular framework for diverse network types. RISK identifies biologically coherent relationships within networks and generates publication-ready visualizations, making it a useful tool for biological and interdisciplinary network analysis.
