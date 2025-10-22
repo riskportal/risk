@@ -252,9 +252,6 @@ def get_weighted_description(words_column: pd.Series, scores_column: pd.Series) 
             token_clean = re.sub(r"[^\w\-]", "", token).strip()
             if not token_clean:
                 continue
-            # Skip tokens that are pure numbers
-            if token_clean.isdigit():
-                continue
             # Skip stopwords
             if token_clean in STOP_WORDS:
                 continue
