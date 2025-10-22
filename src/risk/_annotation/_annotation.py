@@ -257,26 +257,23 @@ def get_weighted_description(words_column: pd.Series, scores_column: pd.Series) 
                 continue
             # Lemmatize the token to merge similar forms
             token_norm = LEMMATIZER.lemmatize(token_clean)
-            weighted_counts[token_norm] = weighted_counts.get(token_norm, 0) + weight
+            # Apply weighting boost for biologically structured number-word hybrids
+            if re.match(r"^\d+[\-\w]+", token_norm):
+                actual_weight = int(weight * 1.5)
+            else:
+                actual_weight = weight
+            weighted_counts[token_norm] = weighted_counts.get(token_norm, 0) + actual_weight
 
     # Reconstruct a weighted token list by repeating each token by its aggregated count.
     weighted_words = []
     for token, count in weighted_counts.items():
         weighted_words.extend([token] * count)
 
-    # Combine tokens that match number-word patterns (e.g. "4-alpha") and remove pure numeric tokens.
+    # Combine tokens that match number-word patterns (e.g. "4-alpha"), but do not remove numeric tokens.
+    # All tokens are included in the final list.
     combined_tokens = []
     for token in weighted_words:
-        if re.match(r"^\d+-\w+", token):
-            combined_tokens.append(token)
-        elif token.replace(".", "", 1).isdigit():
-            continue
-        else:
-            combined_tokens.append(token)
-
-    # If the only token is numeric, return a default value.
-    if len(combined_tokens) == 1 and combined_tokens[0].isdigit():
-        return "N/A"
+        combined_tokens.append(token)
 
     # Simplify the token list to remove near-duplicates based on the Jaccard index.
     simplified_words = _simplify_word_list(combined_tokens)
