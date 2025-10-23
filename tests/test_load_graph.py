@@ -24,7 +24,7 @@ def test_load_graph_with_json_annotation(risk_obj, cytoscape_network, json_annot
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="leiden",
+        clustering="leiden",
         louvain_resolution=8,
         leiden_resolution=1.0,
         fraction_shortest_edges=0.75,
@@ -72,8 +72,8 @@ def test_cluster_size_limits_with_json_annotation(risk_obj, cytoscape_network, j
         neighborhoods = risk_obj.load_neighborhoods_permutation(
             network=cytoscape_network,
             annotation=json_annotation,
-            # Test multiple distance metrics
-            distance_metric=["louvain", "labelprop"],
+            # Test multiple clustering methods
+            clustering=["louvain", "labelprop"],
             louvain_resolution=8,
             fraction_shortest_edges=0.75,
             score_metric="stdev",
@@ -119,7 +119,7 @@ def test_load_graph_with_dict_annotation(risk_obj, cytoscape_network, dict_annot
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=dict_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=8,
         fraction_shortest_edges=0.75,
         score_metric="stdev",
@@ -166,8 +166,8 @@ def test_cluster_size_limits_with_dict_annotation(risk_obj, cytoscape_network, d
         neighborhoods = risk_obj.load_neighborhoods_permutation(
             network=cytoscape_network,
             annotation=dict_annotation,
-            # Test multiple distance metrics
-            distance_metric=["louvain", "labelprop"],
+            # Test multiple clustering methods
+            clustering=["louvain", "labelprop"],
             louvain_resolution=8,
             # Test multiple edge length thresholds
             fraction_shortest_edges=[0.75, 0.25],
@@ -220,7 +220,7 @@ def test_linkage_criterion_and_auto_clustering_options(
         neighborhoods = risk_obj.load_neighborhoods_binom(
             network=cytoscape_network,
             annotation=json_annotation,
-            distance_metric="louvain",
+            clustering="louvain",
             louvain_resolution=1.0,
             fraction_shortest_edges=0.75,
             null_distribution="network",
@@ -263,7 +263,7 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="leiden",
+        clustering="leiden",
         louvain_resolution=8,
         fraction_shortest_edges=0.75,
         score_metric="stdev",
@@ -401,7 +401,7 @@ def test_invalid_clustering_args_raise(risk_obj, cytoscape_network, json_annotat
     neighborhoods = risk_obj.load_neighborhoods_binom(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=1.0,
         fraction_shortest_edges=0.75,
         null_distribution="network",
@@ -439,7 +439,7 @@ def test_off_criterion_bypasses_invalid_options(risk_obj, cytoscape_network, jso
     neighborhoods = risk_obj.load_neighborhoods_binom(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=1.0,
         fraction_shortest_edges=0.75,
         null_distribution="network",

@@ -70,7 +70,7 @@ def define_domains(
         # Safeguard the matrix by replacing NaN, Inf, and -Inf values
         m = _safeguard_matrix(m)
         try:
-            # Optimize silhouette score across different linkage methods and distance metrics
+            # Optimize silhouette score across different linkage methods and metrics
             (
                 best_linkage,
                 best_metric,
@@ -267,7 +267,7 @@ def _optimize_silhouette_across_linkage_and_metrics(
     linkage_threshold: Union[str, float],
 ) -> Tuple[str, str, float]:
     """
-    Optimize silhouette score across different linkage methods and distance metrics.
+    Optimize silhouette score across different linkage methods and metrics.
 
     Args:
         m (np.ndarray): Data matrix.

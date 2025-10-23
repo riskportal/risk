@@ -42,7 +42,7 @@ def test_load_graphs(request, risk_obj, network_fixture, annotation_fixture):
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=network,
         annotation=annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=8,
         leiden_resolution=1.0,
         fraction_shortest_edges=0.75,

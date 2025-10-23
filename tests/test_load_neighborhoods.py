@@ -22,7 +22,7 @@ def test_load_neighborhoods_binom(risk_obj, cytoscape_network, json_annotation, 
     neighborhoods = risk_obj.load_neighborhoods_binom(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=0.01,
         fraction_shortest_edges=0.25,
         null_distribution=null_distribution,
@@ -47,7 +47,7 @@ def test_load_neighborhoods_chi2(risk_obj, cytoscape_network, json_annotation, n
     neighborhoods = risk_obj.load_neighborhoods_chi2(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=0.01,
         fraction_shortest_edges=0.25,
         null_distribution=null_distribution,
@@ -74,7 +74,7 @@ def test_load_neighborhoods_hypergeom(
     neighborhoods = risk_obj.load_neighborhoods_hypergeom(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=0.01,
         fraction_shortest_edges=0.25,
         null_distribution=null_distribution,
@@ -103,7 +103,7 @@ def test_load_neighborhoods_permutation_single_process(
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="leiden",
+        clustering="leiden",
         louvain_resolution=0.01,
         leiden_resolution=1.0,
         fraction_shortest_edges=0.25,
@@ -131,7 +131,7 @@ def test_load_neighborhoods_permutation_multi_process(risk_obj, cytoscape_networ
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=0.01,
         fraction_shortest_edges=0.25,
         score_metric="stdev",
@@ -146,7 +146,7 @@ def test_load_neighborhoods_permutation_multi_process(risk_obj, cytoscape_networ
 
 
 @pytest.mark.parametrize(
-    "distance_metric, fraction_shortest_edges",
+    "clustering, fraction_shortest_edges",
     [
         ("greedy", 0.75),
         ("louvain", 0.80),
@@ -184,24 +184,24 @@ def test_load_neighborhoods_permutation_multi_process(risk_obj, cytoscape_networ
         ),
     ],
 )
-def test_load_neighborhoods_with_various_distance_metrics(
-    risk_obj, cytoscape_network, json_annotation, distance_metric, fraction_shortest_edges
+def test_load_neighborhoods_with_various_clustering(
+    risk_obj, cytoscape_network, json_annotation, clustering, fraction_shortest_edges
 ):
     """
-    Test loading neighborhoods using various distance metrics with matching edge length thresholds.
+    Test loading neighborhoods using various clustering methods with matching edge length thresholds.
 
     Args:
         risk_obj: The RISK object instance used for loading neighborhoods.
         cytoscape_network: The network object to be used for neighborhood generation.
         json_annotation: The annotation associated with the network.
-        distance_metric: The specific distance metric(s) to be used for generating neighborhoods.
-        fraction_shortest_edges: The edge length threshold(s) corresponding to each distance metric.
+        clustering: The specific clustering method(s) to be used for generating neighborhoods.
+        fraction_shortest_edges: The edge length threshold(s) corresponding to each clustering method.
     """
-    # Load neighborhoods with the current distance metric(s) and matching edge length threshold(s)
+    # Load neighborhoods with the current clustering method(s) and matching edge length threshold(s)
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric=distance_metric,
+        clustering=clustering,
         louvain_resolution=8,
         fraction_shortest_edges=fraction_shortest_edges,
         score_metric="stdev",
@@ -232,7 +232,7 @@ def test_load_neighborhoods_with_various_score_metrics(
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",  # Using louvain as the distance metric
+        clustering="louvain",  # Using louvain as the clustering method
         louvain_resolution=8,
         fraction_shortest_edges=0.75,
         score_metric=score_metric,
@@ -263,7 +263,7 @@ def test_load_neighborhoods_with_various_null_distributions(
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",  # Using louvain as the distance metric
+        clustering="louvain",  # Using louvain as the clustering method
         fraction_shortest_edges=0.75,
         score_metric="stdev",  # Using stdev as the score metric
         null_distribution=null_distribution,  # Parametrized null distribution
@@ -284,7 +284,7 @@ def test_load_neighborhoods_structure(
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=8,
         fraction_shortest_edges=0.75,
         score_metric="stdev",
@@ -322,7 +322,7 @@ def test_load_neighborhoods_empty_network(risk_obj, json_annotation):
         risk_obj.load_neighborhoods_permutation(
             network=empty_network,
             annotation=json_annotation,
-            distance_metric="louvain",
+            clustering="louvain",
             louvain_resolution=8,
             fraction_shortest_edges=0.75,
             score_metric="stdev",
@@ -349,7 +349,7 @@ def test_load_neighborhoods_output_dimensions(
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=8,
         fraction_shortest_edges=0.75,
         score_metric="stdev",
@@ -384,7 +384,7 @@ def test_load_neighborhoods_deterministic_output(risk_obj, cytoscape_network, js
     neighborhoods_1 = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=8,
         fraction_shortest_edges=0.75,
         score_metric="stdev",
@@ -396,7 +396,7 @@ def test_load_neighborhoods_deterministic_output(risk_obj, cytoscape_network, js
     neighborhoods_2 = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",
+        clustering="louvain",
         louvain_resolution=8,
         fraction_shortest_edges=0.75,
         score_metric="stdev",

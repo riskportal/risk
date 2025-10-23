@@ -11,6 +11,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from .._log import log_header, logger, params
+from .._utils import map_deprecated_kwarg
 from ._neighborhoods import get_network_neighborhoods
 from ._stats import (
     compute_binom_test,
@@ -31,12 +32,13 @@ class NeighborhoodsAPI:
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        distance_metric: Union[str, List, Tuple, np.ndarray] = "louvain",
+        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
         louvain_resolution: float = 0.1,
         leiden_resolution: float = 1.0,
         fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
         null_distribution: str = "network",
         random_seed: int = 888,
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Load significant neighborhoods for the network using the binomial test.
@@ -44,8 +46,8 @@ class NeighborhoodsAPI:
         Args:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
+                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
                 'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
@@ -59,11 +61,15 @@ class NeighborhoodsAPI:
             Dict[str, Any]: Computed significance of neighborhoods.
         """
         log_header("Running binomial test")
+        # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
+        map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
+        if "clustering" in kwargs:
+            clustering = kwargs.pop("clustering")
         # Compute neighborhood significance using the binomial test
         return self._load_neighborhoods_by_statistical_test(
             network=network,
             annotation=annotation,
-            distance_metric=distance_metric,
+            clustering=clustering,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,
             fraction_shortest_edges=fraction_shortest_edges,
@@ -71,18 +77,20 @@ class NeighborhoodsAPI:
             random_seed=random_seed,
             statistical_test_key="binom",
             statistical_test_function=compute_binom_test,
+            **kwargs,
         )
 
     def load_neighborhoods_chi2(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        distance_metric: Union[str, List, Tuple, np.ndarray] = "louvain",
+        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
         louvain_resolution: float = 0.1,
         leiden_resolution: float = 1.0,
         fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
         null_distribution: str = "network",
         random_seed: int = 888,
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Load significant neighborhoods for the network using the chi-squared test.
@@ -90,8 +98,8 @@ class NeighborhoodsAPI:
         Args:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
+                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
                 'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
@@ -105,11 +113,15 @@ class NeighborhoodsAPI:
             Dict[str, Any]: Computed significance of neighborhoods.
         """
         log_header("Running chi-squared test")
+        # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
+        map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
+        if "clustering" in kwargs:
+            clustering = kwargs.pop("clustering")
         # Compute neighborhood significance using the chi-squared test
         return self._load_neighborhoods_by_statistical_test(
             network=network,
             annotation=annotation,
-            distance_metric=distance_metric,
+            clustering=clustering,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,
             fraction_shortest_edges=fraction_shortest_edges,
@@ -117,18 +129,20 @@ class NeighborhoodsAPI:
             random_seed=random_seed,
             statistical_test_key="chi2",
             statistical_test_function=compute_chi2_test,
+            **kwargs,
         )
 
     def load_neighborhoods_hypergeom(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        distance_metric: Union[str, List, Tuple, np.ndarray] = "louvain",
+        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
         louvain_resolution: float = 0.1,
         leiden_resolution: float = 1.0,
         fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
         null_distribution: str = "network",
         random_seed: int = 888,
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Load significant neighborhoods for the network using the hypergeometric test.
@@ -136,8 +150,8 @@ class NeighborhoodsAPI:
         Args:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
+                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
                 'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
@@ -151,11 +165,15 @@ class NeighborhoodsAPI:
             Dict[str, Any]: Computed significance of neighborhoods.
         """
         log_header("Running hypergeometric test")
+        # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
+        map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
+        if "clustering" in kwargs:
+            clustering = kwargs.pop("clustering")
         # Compute neighborhood significance using the hypergeometric test
         return self._load_neighborhoods_by_statistical_test(
             network=network,
             annotation=annotation,
-            distance_metric=distance_metric,
+            clustering=clustering,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,
             fraction_shortest_edges=fraction_shortest_edges,
@@ -163,13 +181,14 @@ class NeighborhoodsAPI:
             random_seed=random_seed,
             statistical_test_key="hypergeom",
             statistical_test_function=compute_hypergeom_test,
+            **kwargs,
         )
 
     def load_neighborhoods_permutation(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        distance_metric: Union[str, List, Tuple, np.ndarray] = "louvain",
+        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
         louvain_resolution: float = 0.1,
         leiden_resolution: float = 1.0,
         fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
@@ -178,6 +197,7 @@ class NeighborhoodsAPI:
         num_permutations: int = 1000,
         random_seed: int = 888,
         max_workers: int = 1,
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Load significant neighborhoods for the network using the permutation test.
@@ -185,8 +205,8 @@ class NeighborhoodsAPI:
         Args:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
+                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
                 'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
@@ -207,11 +227,15 @@ class NeighborhoodsAPI:
         logger.debug(f"Neighborhood scoring metric: '{score_metric}'")
         logger.debug(f"Number of permutations: {num_permutations}")
         logger.debug(f"Maximum workers: {max_workers}")
+        # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
+        map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
+        if "clustering" in kwargs:
+            clustering = kwargs.pop("clustering")
         # Compute neighborhood significance using the permutation test
         return self._load_neighborhoods_by_statistical_test(
             network=network,
             annotation=annotation,
-            distance_metric=distance_metric,
+            clustering=clustering,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,
             fraction_shortest_edges=fraction_shortest_edges,
@@ -222,13 +246,14 @@ class NeighborhoodsAPI:
             score_metric=score_metric,
             num_permutations=num_permutations,
             max_workers=max_workers,
+            **kwargs,
         )
 
     def _load_neighborhoods_by_statistical_test(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        distance_metric: Union[str, List, Tuple, np.ndarray] = "louvain",
+        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
         louvain_resolution: float = 0.1,
         leiden_resolution: float = 1.0,
         fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
@@ -244,9 +269,8 @@ class NeighborhoodsAPI:
         Args:
             network (nx.Graph): The input network graph.
             annotation (Dict[str, Any]): Annotation data associated with the network, including a "matrix" key with annotation values.
-            distance_metric (Union[str, List, Tuple, np.ndarray], optional): The distance metric or clustering method to define neighborhoods.
-                Can be a string specifying one method (e.g., 'louvain', 'leiden') or a collection of methods.
-                Defaults to "louvain".
+            clustering (Union[str, List, Tuple, np.ndarray], optional): The clustering method(s) to define neighborhoods.
+                Can be a single method (e.g., 'louvain', 'leiden') or a collection of methods. Defaults to "louvain".
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
             fraction_shortest_edges (Union[float, List, Tuple, np.ndarray], optional): Fraction of shortest edges to consider for creating subgraphs.
@@ -268,7 +292,7 @@ class NeighborhoodsAPI:
         logger.debug(f"Null distribution: '{null_distribution}'")
         # Log neighborhood analysis parameters
         params.log_neighborhoods(
-            distance_metric=distance_metric,
+            clustering=clustering,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,
             fraction_shortest_edges=fraction_shortest_edges,
@@ -280,10 +304,10 @@ class NeighborhoodsAPI:
 
         # Make a copy of the network to avoid modifying the original
         network = copy.copy(network)
-        # Load neighborhoods based on the network and distance metric
+        # Load neighborhoods based on the network and clustering
         neighborhoods = self._load_neighborhoods(
             network,
-            distance_metric,
+            clustering,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,
             fraction_shortest_edges=fraction_shortest_edges,
@@ -303,7 +327,7 @@ class NeighborhoodsAPI:
     def _load_neighborhoods(
         self,
         network: nx.Graph,
-        distance_metric: Union[str, List, Tuple, np.ndarray] = "louvain",
+        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
         louvain_resolution: float = 0.1,
         leiden_resolution: float = 1.0,
         fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
@@ -314,8 +338,8 @@ class NeighborhoodsAPI:
 
         Args:
             network (nx.Graph): The network graph.
-            distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
+                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
                 'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
@@ -325,25 +349,25 @@ class NeighborhoodsAPI:
             random_seed (int, optional): Seed for random number generation. Defaults to 888.
 
         Returns:
-            csr_matrix: Sparse neighborhood matrix calculated based on the selected distance metric.
+            csr_matrix: Sparse neighborhood matrix calculated based on the selected clustering method(s).
         """
-        # Display the chosen distance metric
-        if distance_metric == "louvain":
-            for_print_distance_metric = f"louvain (resolution={louvain_resolution})"
-        elif distance_metric == "leiden":
-            for_print_distance_metric = f"leiden (resolution={leiden_resolution})"
+        # Display the chosen clustering
+        if clustering == "louvain":
+            for_print_clustering = f"louvain (resolution={louvain_resolution})"
+        elif clustering == "leiden":
+            for_print_clustering = f"leiden (resolution={leiden_resolution})"
         else:
-            for_print_distance_metric = distance_metric
+            for_print_clustering = clustering
 
         # Log and display neighborhood settings
-        logger.debug(f"Distance metric: '{for_print_distance_metric}'")
+        logger.debug(f"Clustering: '{for_print_clustering}'")
         logger.debug(f"Edge length threshold: {fraction_shortest_edges}")
         logger.debug(f"Random seed: {random_seed}")
 
         # Compute neighborhoods
         neighborhoods = get_network_neighborhoods(
             network,
-            distance_metric,
+            clustering,
             fraction_shortest_edges,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,

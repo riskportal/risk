@@ -30,7 +30,7 @@ warnings.filterwarnings(action="ignore", category=DataConversionWarning)
 
 def get_network_neighborhoods(
     network: nx.Graph,
-    distance_metric: Union[str, List, Tuple, np.ndarray] = "louvain",
+    clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
     fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 1.0,
     louvain_resolution: float = 0.1,
     leiden_resolution: float = 1.0,
@@ -41,7 +41,7 @@ def get_network_neighborhoods(
 
     Args:
         network (nx.Graph): The network graph.
-        distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use.
+        clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use.
         fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction thresholds.
         louvain_resolution (float, optional): Resolution parameter for the Louvain method.
         leiden_resolution (float, optional): Resolution parameter for the Leiden method.
@@ -51,30 +51,30 @@ def get_network_neighborhoods(
         csr_matrix: The combined neighborhood matrix.
 
     Raises:
-        ValueError: If the number of distance metrics does not match the number of edge length thresholds.
+        ValueError: If the number of clustering methods does not match the number of edge length thresholds.
     """
     # Set random seed for reproducibility
     random.seed(random_seed)
     np.random.seed(random_seed)
 
-    # Ensure distance_metric is a list for multi-algorithm handling
-    if isinstance(distance_metric, (str, np.ndarray)):
-        distance_metric = [distance_metric]
+    # Ensure clustering is a list for multi-algorithm handling
+    if isinstance(clustering, (str, np.ndarray)):
+        clustering = [clustering]
     # Ensure fraction_shortest_edges is a list for multi-threshold handling
     if isinstance(fraction_shortest_edges, (float, int)):
-        fraction_shortest_edges = [fraction_shortest_edges] * len(distance_metric)
-    # Validate matching lengths of distance metrics and thresholds
-    if len(distance_metric) != len(fraction_shortest_edges):
+        fraction_shortest_edges = [fraction_shortest_edges] * len(clustering)
+    # Validate matching lengths of clustering methods and edge length thresholds
+    if len(clustering) != len(fraction_shortest_edges):
         raise ValueError(
-            "The number of distance metrics must match the number of edge length thresholds."
+            "The number of clustering methods must match the number of edge length thresholds."
         )
 
     # Initialize a sparse LIL matrix for incremental updates
     num_nodes = network.number_of_nodes()
     # Initialize a sparse matrix with the same shape as the network
     combined_neighborhoods = csr_matrix((num_nodes, num_nodes), dtype=np.uint8)
-    # Loop through each distance metric and corresponding edge rank fraction
-    for metric, percentile in zip(distance_metric, fraction_shortest_edges):
+    # Loop through each clustering method and corresponding edge rank fraction
+    for metric, percentile in zip(clustering, fraction_shortest_edges):
         # Compute neighborhoods for the specified metric
         if metric == "greedy":
             neighborhoods = calculate_greedy_modularity_neighborhoods(
@@ -112,8 +112,8 @@ def get_network_neighborhoods(
             )
         else:
             raise ValueError(
-                "Invalid distance metric. Choose from: 'greedy', 'labelprop',"
-                "'leiden', 'louvain', 'markov', 'spinglass', 'walktrap'."
+                "Invalid clustering method. Choose from: 'greedy', 'labelprop',"
+                " 'leiden', 'louvain', 'markov', 'spinglass', 'walktrap'."
             )
 
         # Add the sparse neighborhood matrix
