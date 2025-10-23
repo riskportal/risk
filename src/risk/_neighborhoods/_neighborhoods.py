@@ -76,11 +76,11 @@ def get_network_neighborhoods(
     # Loop through each distance metric and corresponding edge rank fraction
     for metric, percentile in zip(distance_metric, fraction_shortest_edges):
         # Compute neighborhoods for the specified metric
-        if metric == "greedy_modularity":
+        if metric == "greedy":
             neighborhoods = calculate_greedy_modularity_neighborhoods(
                 network, fraction_shortest_edges=percentile
             )
-        elif metric == "label_propagation":
+        elif metric == "labelprop":
             neighborhoods = calculate_label_propagation_neighborhoods(
                 network, fraction_shortest_edges=percentile
             )
@@ -98,7 +98,7 @@ def get_network_neighborhoods(
                 fraction_shortest_edges=percentile,
                 random_seed=random_seed,
             )
-        elif metric == "markov_clustering":
+        elif metric == "markov":
             neighborhoods = calculate_markov_clustering_neighborhoods(
                 network, fraction_shortest_edges=percentile
             )
@@ -112,8 +112,8 @@ def get_network_neighborhoods(
             )
         else:
             raise ValueError(
-                "Invalid distance metric. Choose from: 'greedy_modularity', 'label_propagation',"
-                "'leiden', 'louvain', 'markov_clustering', 'spinglass', 'walktrap'."
+                "Invalid distance metric. Choose from: 'greedy', 'labelprop',"
+                "'leiden', 'louvain', 'markov', 'spinglass', 'walktrap'."
             )
 
         # Add the sparse neighborhood matrix

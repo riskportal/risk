@@ -73,7 +73,7 @@ def test_cluster_size_limits_with_json_annotation(risk_obj, cytoscape_network, j
             network=cytoscape_network,
             annotation=json_annotation,
             # Test multiple distance metrics
-            distance_metric=["louvain", "label_propagation"],
+            distance_metric=["louvain", "labelprop"],
             louvain_resolution=8,
             fraction_shortest_edges=0.75,
             score_metric="stdev",
@@ -167,7 +167,7 @@ def test_cluster_size_limits_with_dict_annotation(risk_obj, cytoscape_network, d
             network=cytoscape_network,
             annotation=dict_annotation,
             # Test multiple distance metrics
-            distance_metric=["louvain", "label_propagation"],
+            distance_metric=["louvain", "labelprop"],
             louvain_resolution=8,
             # Test multiple edge length thresholds
             fraction_shortest_edges=[0.75, 0.25],

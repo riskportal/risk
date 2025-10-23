@@ -148,22 +148,22 @@ def test_load_neighborhoods_permutation_multi_process(risk_obj, cytoscape_networ
 @pytest.mark.parametrize(
     "distance_metric, fraction_shortest_edges",
     [
-        ("greedy_modularity", 0.75),
+        ("greedy", 0.75),
         ("louvain", 0.80),
         ("leiden", 0.85),
-        ("label_propagation", 0.70),
-        ("markov_clustering", 0.65),
+        ("labelprop", 0.70),
+        ("markov", 0.65),
         ("walktrap", 0.85),
         ("spinglass", 0.90),
         (["louvain"], [0.75]),
-        (["louvain", "label_propagation"], [0.75, 0.70]),
-        (["louvain", "markov_clustering"], [0.75, 0.65]),
-        (["label_propagation", "walktrap", "spinglass"], [0.70, 0.85, 0.90]),
+        (["louvain", "labelprop"], [0.75, 0.70]),
+        (["louvain", "markov"], [0.75, 0.65]),
+        (["labelprop", "walktrap", "spinglass"], [0.70, 0.85, 0.90]),
         (
             [
                 "louvain",
-                "label_propagation",
-                "markov_clustering",
+                "labelprop",
+                "markov",
                 "walktrap",
                 "spinglass",
                 "leiden",
@@ -174,11 +174,11 @@ def test_load_neighborhoods_permutation_multi_process(risk_obj, cytoscape_networ
             [
                 "louvain",
                 "leiden",
-                "label_propagation",
-                "markov_clustering",
+                "labelprop",
+                "markov",
                 "walktrap",
                 "spinglass",
-                "greedy_modularity",
+                "greedy",
             ],
             [0.75, 0.70, 0.65, 0.85, 0.90, 0.80, 0.90],
         ),
@@ -263,7 +263,7 @@ def test_load_neighborhoods_with_various_null_distributions(
     neighborhoods = risk_obj.load_neighborhoods_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
-        distance_metric="louvain",  # Using markov_clustering as the distance metric
+        distance_metric="louvain",  # Using louvain as the distance metric
         fraction_shortest_edges=0.75,
         score_metric="stdev",  # Using stdev as the score metric
         null_distribution=null_distribution,  # Parametrized null distribution

@@ -45,8 +45,8 @@ class NeighborhoodsAPI:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
             distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy_modularity', 'louvain', 'leiden', 'label_propagation',
-                'markov_clustering', 'walktrap', 'spinglass'). Defaults to 'louvain'.
+                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
             fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
@@ -91,8 +91,8 @@ class NeighborhoodsAPI:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
             distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy_modularity', 'louvain', 'leiden', 'label_propagation',
-                'markov_clustering', 'walktrap', 'spinglass'). Defaults to 'louvain'.
+                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
             fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
@@ -137,8 +137,8 @@ class NeighborhoodsAPI:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
             distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy_modularity', 'louvain', 'leiden', 'label_propagation',
-                'markov_clustering', 'walktrap', 'spinglass'). Defaults to 'louvain'.
+                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
             fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
@@ -186,8 +186,8 @@ class NeighborhoodsAPI:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
             distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy_modularity', 'louvain', 'leiden', 'label_propagation',
-                'markov_clustering', 'walktrap', 'spinglass'). Defaults to 'louvain'.
+                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
             fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
@@ -315,8 +315,8 @@ class NeighborhoodsAPI:
         Args:
             network (nx.Graph): The network graph.
             distance_metric (str, List, Tuple, or np.ndarray, optional): The distance metric(s) to use. Can be a string for one
-                metric or a list/tuple/ndarray of metrics ('greedy_modularity', 'louvain', 'leiden', 'label_propagation',
-                'markov_clustering', 'walktrap', 'spinglass'). Defaults to 'louvain'.
+                metric or a list/tuple/ndarray of metrics ('greedy', 'louvain', 'leiden', 'labelprop',
+                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
             fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
