@@ -1,6 +1,6 @@
 """
-risk/_network/_plotter/_canvas
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/network/plotter/_canvas
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 from typing import List, Tuple, Union

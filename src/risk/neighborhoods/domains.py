@@ -1,6 +1,6 @@
 """
-risk/_neighborhoods/_domains
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/neighborhoods/domains
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 from itertools import product

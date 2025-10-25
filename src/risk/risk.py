@@ -1,6 +1,6 @@
 """
-risk/_risk
-~~~~~~~~~~
+risk/risk
+~~~~~~~~~
 """
 
 from .annotation import AnnotationHandler

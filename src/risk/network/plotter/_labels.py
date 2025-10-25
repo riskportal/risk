@@ -1,6 +1,6 @@
 """
-risk/_network/_plotter/_labels
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/network/plotter/_labels
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 import copy

@@ -1,6 +1,6 @@
 """
-risk/_neighborhoods/_community
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/neighborhoods/_community
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 import community as community_louvain

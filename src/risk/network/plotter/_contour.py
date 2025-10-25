@@ -1,6 +1,6 @@
 """
-risk/_network/_plotter/_contour
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/network/plotter/_contour
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 from typing import Any, Dict, List, Tuple, Union

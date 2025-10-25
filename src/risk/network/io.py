@@ -1,6 +1,6 @@
 """
-risk/_network/_io
-~~~~~~~~~~~~~~~~~
+risk/network/io
+~~~~~~~~~~~~~~~
 """
 
 import copy

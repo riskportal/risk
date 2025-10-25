@@ -1,6 +1,6 @@
 """
-risk/_annotation/_annotation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/annotation/annotation
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 import re

@@ -1,6 +1,6 @@
 """
-risk/_annotation/_nltk_setup
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/annotation/_nltk_setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 import os

@@ -1,6 +1,6 @@
 """
-risk/_annotation/_io
-~~~~~~~~~~~~~~~~~~~~
+risk/annotation/io
+~~~~~~~~~~~~~~~~~~
 """
 
 import json

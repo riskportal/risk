@@ -1,6 +1,6 @@
 """
-risk/_utils/_deprecations
-~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/utils/deprecations
+~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 from typing import Any, Dict, Optional

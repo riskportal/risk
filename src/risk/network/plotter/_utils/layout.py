@@ -1,6 +1,6 @@
 """
-risk/_network/_plotter/_utils/_layout
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/network/plotter/_utils/layout
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 from typing import Any, Dict, List, Tuple

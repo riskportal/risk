@@ -1,6 +1,6 @@
 """
-risk/_network/_graph/_api
-~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/network/graph/api
+~~~~~~~~~~~~~~~~~~~~~~
 """
 
 import copy
