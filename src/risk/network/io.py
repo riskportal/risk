@@ -370,7 +370,7 @@ class NetworkIO:
         self._log_loading_network(filetype, filepath=filepath)
 
         # Load the Cytoscape JSON file
-        with open(filepath, "r") as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             cyjs_data = json.load(f)
 
         # Create a graph
