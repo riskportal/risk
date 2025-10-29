@@ -37,7 +37,7 @@ def get_network_clusters(
     random_seed: int = 888,
 ) -> csr_matrix:
     """
-    Calculate the combined clusters for each node using sparse matrices.
+    Calculate the clusters for each node using sparse matrices.
 
     Args:
         network (nx.Graph): The network graph.
@@ -48,7 +48,7 @@ def get_network_clusters(
         random_seed (int, optional): Random seed for methods requiring random initialization.
 
     Returns:
-        csr_matrix: The combined cluster matrix.
+        csr_matrix: The cluster matrix.
 
     Raises:
         ValueError: If the number of clustering methods does not match the number of edge length thresholds.

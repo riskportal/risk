@@ -4,21 +4,13 @@ risk/cluster/api
 """
 
 import copy
-from typing import Any, Dict, List, Tuple, Union
+from typing import List, Tuple, Union
 
 import networkx as nx
 import numpy as np
-from scipy.sparse import csr_matrix
 
 from ..log import log_header, logger, params
-from ..utils import map_deprecated_kwarg
 from .cluster import get_network_clusters
-from ._stats import (
-    compute_binom_test,
-    compute_chi2_test,
-    compute_hypergeom_test,
-    compute_permutation_test,
-)
 
 
 class ClusterAPI:
@@ -28,342 +20,53 @@ class ClusterAPI:
     The ClusterAPI class provides methods to load cluster results from statistical tests.
     """
 
-    def load_clusters_binom(
+    def load_clusters(
         self,
         network: nx.Graph,
-        annotation: Dict[str, Any],
         clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
         louvain_resolution: float = 0.1,
         leiden_resolution: float = 1.0,
         fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
-        null_distribution: str = "network",
         random_seed: int = 888,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        """
-        Load significant clusters for the network using the binomial test.
-
-        Args:
-            network (nx.Graph): The network graph.
-            annotation (Dict[str, Any]): The annotation associated with the network.
-            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
-                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
-                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
-            louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
-            leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
-            fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
-                Can be a single float for one threshold or a list/tuple of floats corresponding to multiple thresholds.
-                Defaults to 0.5.
-            null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
-            random_seed (int, optional): Seed for random number generation. Defaults to 888.
-
-        Returns:
-            Dict[str, Any]: Computed significance of clusters.
-        """
-        log_header("Running binomial test")
-        # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
-        map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
-        if "clustering" in kwargs:
-            clustering = kwargs.pop("clustering")
-        # Compute cluster significance using the binomial test
-        return self._load_clusters_by_statistical_test(
-            network=network,
-            annotation=annotation,
-            clustering=clustering,
-            louvain_resolution=louvain_resolution,
-            leiden_resolution=leiden_resolution,
-            fraction_shortest_edges=fraction_shortest_edges,
-            null_distribution=null_distribution,
-            random_seed=random_seed,
-            statistical_test_key="binom",
-            statistical_test_function=compute_binom_test,
-            **kwargs,
-        )
-
-    def load_clusters_chi2(
-        self,
-        network: nx.Graph,
-        annotation: Dict[str, Any],
-        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
-        louvain_resolution: float = 0.1,
-        leiden_resolution: float = 1.0,
-        fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
-        null_distribution: str = "network",
-        random_seed: int = 888,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        """
-        Load significant clusters for the network using the chi-squared test.
-
-        Args:
-            network (nx.Graph): The network graph.
-            annotation (Dict[str, Any]): The annotation associated with the network.
-            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
-                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
-                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
-            louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
-            leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
-            fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
-                Can be a single float for one threshold or a list/tuple of floats corresponding to multiple thresholds.
-                Defaults to 0.5.
-            null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
-            random_seed (int, optional): Seed for random number generation. Defaults to 888.
-
-        Returns:
-            Dict[str, Any]: Computed significance of clusters.
-        """
-        log_header("Running chi-squared test")
-        # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
-        map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
-        if "clustering" in kwargs:
-            clustering = kwargs.pop("clustering")
-        # Compute cluster significance using the chi-squared test
-        return self._load_clusters_by_statistical_test(
-            network=network,
-            annotation=annotation,
-            clustering=clustering,
-            louvain_resolution=louvain_resolution,
-            leiden_resolution=leiden_resolution,
-            fraction_shortest_edges=fraction_shortest_edges,
-            null_distribution=null_distribution,
-            random_seed=random_seed,
-            statistical_test_key="chi2",
-            statistical_test_function=compute_chi2_test,
-            **kwargs,
-        )
-
-    def load_clusters_hypergeom(
-        self,
-        network: nx.Graph,
-        annotation: Dict[str, Any],
-        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
-        louvain_resolution: float = 0.1,
-        leiden_resolution: float = 1.0,
-        fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
-        null_distribution: str = "network",
-        random_seed: int = 888,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        """
-        Load significant clusters for the network using the hypergeometric test.
-
-        Args:
-            network (nx.Graph): The network graph.
-            annotation (Dict[str, Any]): The annotation associated with the network.
-            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
-                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
-                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
-            louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
-            leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
-            fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
-                Can be a single float for one threshold or a list/tuple of floats corresponding to multiple thresholds.
-                Defaults to 0.5.
-            null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
-            random_seed (int, optional): Seed for random number generation. Defaults to 888.
-
-        Returns:
-            Dict[str, Any]: Computed significance of clusters.
-        """
-        log_header("Running hypergeometric test")
-        # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
-        map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
-        if "clustering" in kwargs:
-            clustering = kwargs.pop("clustering")
-        # Compute cluster significance using the hypergeometric test
-        return self._load_clusters_by_statistical_test(
-            network=network,
-            annotation=annotation,
-            clustering=clustering,
-            louvain_resolution=louvain_resolution,
-            leiden_resolution=leiden_resolution,
-            fraction_shortest_edges=fraction_shortest_edges,
-            null_distribution=null_distribution,
-            random_seed=random_seed,
-            statistical_test_key="hypergeom",
-            statistical_test_function=compute_hypergeom_test,
-            **kwargs,
-        )
-
-    def load_clusters_permutation(
-        self,
-        network: nx.Graph,
-        annotation: Dict[str, Any],
-        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
-        louvain_resolution: float = 0.1,
-        leiden_resolution: float = 1.0,
-        fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
-        score_metric: str = "sum",
-        null_distribution: str = "network",
-        num_permutations: int = 1000,
-        random_seed: int = 888,
-        max_workers: int = 1,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        """
-        Load significant clusters for the network using the permutation test.
-
-        Args:
-            network (nx.Graph): The network graph.
-            annotation (Dict[str, Any]): The annotation associated with the network.
-            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
-                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
-                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
-            louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
-            leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
-            fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
-                Can be a single float for one threshold or a list/tuple of floats corresponding to multiple thresholds.
-                Defaults to 0.5.
-            score_metric (str, optional): Scoring metric for cluster significance. Defaults to "sum".
-            null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
-            num_permutations (int, optional): Number of permutations for significance testing. Defaults to 1000.
-            random_seed (int, optional): Seed for random number generation. Defaults to 888.
-            max_workers (int, optional): Maximum number of workers for parallel computation. Defaults to 1.
-
-        Returns:
-            Dict[str, Any]: Computed significance of clusters.
-        """
-        log_header("Running permutation test")
-        # Log and display permutation test settings, which is unique to this test
-        logger.debug(f"Cluster scoring metric: '{score_metric}'")
-        logger.debug(f"Number of permutations: {num_permutations}")
-        logger.debug(f"Maximum workers: {max_workers}")
-        # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
-        map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
-        if "clustering" in kwargs:
-            clustering = kwargs.pop("clustering")
-        # Compute cluster significance using the permutation test
-        return self._load_clusters_by_statistical_test(
-            network=network,
-            annotation=annotation,
-            clustering=clustering,
-            louvain_resolution=louvain_resolution,
-            leiden_resolution=leiden_resolution,
-            fraction_shortest_edges=fraction_shortest_edges,
-            null_distribution=null_distribution,
-            random_seed=random_seed,
-            statistical_test_key="permutation",
-            statistical_test_function=compute_permutation_test,
-            score_metric=score_metric,
-            num_permutations=num_permutations,
-            max_workers=max_workers,
-            **kwargs,
-        )
-
-    def _load_clusters_by_statistical_test(
-        self,
-        network: nx.Graph,
-        annotation: Dict[str, Any],
-        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
-        louvain_resolution: float = 0.1,
-        leiden_resolution: float = 1.0,
-        fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
-        null_distribution: str = "network",
-        random_seed: int = 888,
-        statistical_test_key: str = "hypergeom",
-        statistical_test_function: Any = compute_hypergeom_test,
         **kwargs,
     ):
         """
-        Load and compute significant clusters for the network using a specified statistical test.
+        Load clusters for the network.
 
         Args:
             network (nx.Graph): The input network graph.
-            annotation (Dict[str, Any]): Annotation data associated with the network, including a "matrix" key with annotation values.
             clustering (Union[str, List, Tuple, np.ndarray], optional): The clustering method(s) to define clusters.
                 Can be a single method (e.g., 'louvain', 'leiden') or a collection of methods. Defaults to "louvain".
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
             fraction_shortest_edges (Union[float, List, Tuple, np.ndarray], optional): Fraction of shortest edges to consider for creating subgraphs.
                 Can be a single value or a collection of thresholds for flexibility. Defaults to 0.5.
-            null_distribution (str, optional): The type of null distribution to use ('network' or 'annotation').
-                Defaults to "network".
             random_seed (int, optional): Seed for random number generation to ensure reproducibility. Defaults to 888.
-            statistical_test_key (str, optional): Key or name of the statistical test to be applied (e.g., "hypergeom", "binom").
-                Used for logging and debugging. Defaults to "hypergeom".
-            statistical_test_function (Any, optional): The function implementing the statistical test.
-                It should accept clusters, annotation, null distribution, and additional kwargs.
-                Defaults to `compute_hypergeom_test`.
-            **kwargs: Additional parameters to be passed to the statistical test function.
 
         Returns:
-            Dict[str, Any]: A dictionary containing the computed significance values for clusters.
+            csr_matrix: The cluster matrix.
         """
-        # Log null distribution type
-        logger.debug(f"Null distribution: '{null_distribution}'")
-        # Log cluster analysis parameters
+        log_header("Loading clusters")
+        # Log and display cluster settings
+        clustering_log = {
+            "louvain": f"louvain (resolution={louvain_resolution})",
+            "leiden": f"leiden (resolution={leiden_resolution})",
+        }
+        logger.debug(f"Clustering: '{clustering_log.get(clustering, clustering)}'")
+        logger.debug(f"Edge length threshold: {fraction_shortest_edges}")
+        logger.debug(f"Random seed: {random_seed}")
+        # Log clustering parameters
         params.log_clusters(
             clustering=clustering,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,
             fraction_shortest_edges=fraction_shortest_edges,
-            statistical_test_function=statistical_test_key,
-            null_distribution=null_distribution,
             random_seed=random_seed,
             **kwargs,
         )
 
         # Make a copy of the network to avoid modifying the original
         network = copy.copy(network)
-        # Load clusters based on the network and clustering
-        clusters = self._load_clusters(
-            network,
-            clustering,
-            louvain_resolution=louvain_resolution,
-            leiden_resolution=leiden_resolution,
-            fraction_shortest_edges=fraction_shortest_edges,
-            random_seed=random_seed,
-        )
-        # Apply statistical test function to compute cluster significance
-        cluster_significance = statistical_test_function(
-            clusters=clusters,
-            annotation=annotation["matrix"],
-            null_distribution=null_distribution,
-            **kwargs,
-        )
-
-        # Return the computed cluster significance
-        return cluster_significance
-
-    def _load_clusters(
-        self,
-        network: nx.Graph,
-        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
-        louvain_resolution: float = 0.1,
-        leiden_resolution: float = 1.0,
-        fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
-        random_seed: int = 888,
-    ) -> csr_matrix:
-        """
-        Load significant clusters for the network.
-
-        Args:
-            network (nx.Graph): The network graph.
-            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
-                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
-                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
-            louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
-            leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
-            fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
-                Can be a single float for one threshold or a list/tuple of floats corresponding to multiple thresholds.
-                Defaults to 0.5.
-            random_seed (int, optional): Seed for random number generation. Defaults to 888.
-
-        Returns:
-            csr_matrix: Sparse cluster matrix calculated based on the selected clustering method(s).
-        """
-        # Display the chosen clustering
-        if clustering == "louvain":
-            for_print_clustering = f"louvain (resolution={louvain_resolution})"
-        elif clustering == "leiden":
-            for_print_clustering = f"leiden (resolution={leiden_resolution})"
-        else:
-            for_print_clustering = clustering
-
-        # Log and display cluster settings
-        logger.debug(f"Clustering: '{for_print_clustering}'")
-        logger.debug(f"Edge length threshold: {fraction_shortest_edges}")
-        logger.debug(f"Random seed: {random_seed}")
-
         # Compute clusters
         clusters = get_network_clusters(
             network,
