@@ -1,6 +1,6 @@
 """
-risk/neighborhoods/_community
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/cluster/_community
+~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 import community as community_louvain
@@ -15,11 +15,11 @@ from scipy.sparse import csr_matrix
 from ..log import logger
 
 
-def calculate_greedy_modularity_neighborhoods(
+def calculate_greedy_modularity_clusters(
     network: nx.Graph, fraction_shortest_edges: float = 1.0
 ) -> csr_matrix:
     """
-    Calculate neighborhoods using the Greedy Modularity method with CSR matrix output.
+    Calculate clusters using the Greedy Modularity method with CSR matrix output.
 
     Args:
         network (nx.Graph): The network graph.
@@ -27,7 +27,7 @@ def calculate_greedy_modularity_neighborhoods(
             subgraphs before clustering. Defaults to 1.0.
 
     Returns:
-        csr_matrix: A binary neighborhood matrix (CSR) where nodes in the same community have 1, and others have 0.
+        csr_matrix: A binary cluster matrix (CSR) where nodes in the same community have 1, and others have 0.
 
     Raises:
         ValueError: If the subgraph has no edges after filtering.
@@ -55,12 +55,12 @@ def calculate_greedy_modularity_neighborhoods(
     # Create a CSR matrix
     num_nodes = len(nodes)
     data = np.ones(len(row_indices), dtype=int)
-    neighborhoods = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
+    clusters = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
 
-    return neighborhoods
+    return clusters
 
 
-def calculate_label_propagation_neighborhoods(
+def calculate_label_propagation_clusters(
     network: nx.Graph, fraction_shortest_edges: float = 1.0
 ) -> csr_matrix:
     """
@@ -72,7 +72,7 @@ def calculate_label_propagation_neighborhoods(
             subgraphs before clustering. Defaults to 1.0.
 
     Returns:
-        csr_matrix: A binary neighborhood matrix (CSR) on Label Propagation.
+        csr_matrix: A binary cluster matrix (CSR) on Label Propagation.
 
     Raises:
         ValueError: If the subgraph has no edges after filtering.
@@ -92,7 +92,7 @@ def calculate_label_propagation_neighborhoods(
     # Prepare data for CSR matrix
     row_indices = []
     col_indices = []
-    # Assign neighborhoods based on community labels using the mapped indices
+    # Assign clusters based on community labels using the mapped indices
     for community in communities:
         mapped_indices = [node_index_map[node] for node in community]
         for i in mapped_indices:
@@ -103,19 +103,19 @@ def calculate_label_propagation_neighborhoods(
     # Create a CSR matrix
     num_nodes = len(nodes)
     data = np.ones(len(row_indices), dtype=int)
-    neighborhoods = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
+    clusters = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
 
-    return neighborhoods
+    return clusters
 
 
-def calculate_leiden_neighborhoods(
+def calculate_leiden_clusters(
     network: nx.Graph,
     resolution: float = 1.0,
     fraction_shortest_edges: float = 1.0,
     random_seed: int = 888,
 ) -> csr_matrix:
     """
-    Calculate neighborhoods using the Leiden method with CSR matrix output.
+    Calculate clusters using the Leiden method with CSR matrix output.
 
     Args:
         network (nx.Graph): The network graph.
@@ -125,7 +125,7 @@ def calculate_leiden_neighborhoods(
         random_seed (int, optional): Random seed for reproducibility. Defaults to 888.
 
     Returns:
-        csr_matrix: A binary neighborhood matrix (CSR) where nodes in the same community have 1, and others have 0.
+        csr_matrix: A binary cluster matrix (CSR) where nodes in the same community have 1, and others have 0.
 
     Raises:
         ValueError: If the subgraph has no edges after filtering.
@@ -160,19 +160,19 @@ def calculate_leiden_neighborhoods(
     # Create a CSR matrix
     num_nodes = len(nodes)
     data = np.ones(len(row_indices), dtype=int)
-    neighborhoods = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
+    clusters = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
 
-    return neighborhoods
+    return clusters
 
 
-def calculate_louvain_neighborhoods(
+def calculate_louvain_clusters(
     network: nx.Graph,
     resolution: float = 0.1,
     fraction_shortest_edges: float = 1.0,
     random_seed: int = 888,
 ) -> csr_matrix:
     """
-    Calculate neighborhoods using the Louvain method.
+    Calculate clusters using the Louvain method.
 
     Args:
         network (nx.Graph): The network graph.
@@ -182,7 +182,7 @@ def calculate_louvain_neighborhoods(
         random_seed (int, optional): Random seed for reproducibility. Defaults to 888.
 
     Returns:
-        csr_matrix: A binary neighborhood matrix in CSR format.
+        csr_matrix: A binary cluster matrix in CSR format.
 
     Raises:
         ValueError: If the subgraph has no edges after filtering.
@@ -217,16 +217,16 @@ def calculate_louvain_neighborhoods(
     # Create a CSR matrix
     num_nodes = len(nodes)
     data = np.ones(len(row_indices), dtype=int)
-    neighborhoods = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
+    clusters = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
 
-    return neighborhoods
+    return clusters
 
 
-def calculate_markov_clustering_neighborhoods(
+def calculate_markov_clustering_clusters(
     network: nx.Graph, fraction_shortest_edges: float = 1.0
 ) -> csr_matrix:
     """
-    Apply Markov Clustering (MCL) to the network and return a binary neighborhood matrix (CSR).
+    Apply Markov Clustering (MCL) to the network and return a binary cluster matrix (CSR).
 
     Args:
         network (nx.Graph): The network graph.
@@ -234,7 +234,7 @@ def calculate_markov_clustering_neighborhoods(
             subgraphs before clustering. Defaults to 1.0.
 
     Returns:
-        csr_matrix: A binary neighborhood matrix (CSR) on Markov Clustering.
+        csr_matrix: A binary cluster matrix (CSR) on Markov Clustering.
 
     Raises:
         ValueError: If the subgraph has no edges after filtering.
@@ -288,12 +288,12 @@ def calculate_markov_clustering_neighborhoods(
 
     # Step 5: Create a CSR matrix
     data = np.ones(len(row_indices), dtype=int)
-    neighborhoods = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
+    clusters = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
 
-    return neighborhoods
+    return clusters
 
 
-def calculate_spinglass_neighborhoods(
+def calculate_spinglass_clusters(
     network: nx.Graph, fraction_shortest_edges: float = 1.0
 ) -> csr_matrix:
     """
@@ -305,7 +305,7 @@ def calculate_spinglass_neighborhoods(
             subgraphs before clustering. Defaults to 1.0.
 
     Returns:
-        csr_matrix: A binary neighborhood matrix (CSR) based on Spinglass communities.
+        csr_matrix: A binary cluster matrix (CSR) based on Spinglass communities.
 
     Raises:
         ValueError: If the subgraph has no edges after filtering.
@@ -340,7 +340,7 @@ def calculate_spinglass_neighborhoods(
             logger.error(f"Error running Spinglass on component: {e}")
             continue
 
-        # Step 3: Assign neighborhoods based on community labels
+        # Step 3: Assign clusters based on community labels
         for community in communities:
             mapped_indices = [
                 node_index_map[igraph_subgraph.vs[node]["_nx_name"]] for node in community
@@ -353,12 +353,12 @@ def calculate_spinglass_neighborhoods(
     # Step 4: Create a CSR matrix
     num_nodes = len(nodes)
     data = np.ones(len(row_indices), dtype=int)
-    neighborhoods = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
+    clusters = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
 
-    return neighborhoods
+    return clusters
 
 
-def calculate_walktrap_neighborhoods(
+def calculate_walktrap_clusters(
     network: nx.Graph, fraction_shortest_edges: float = 1.0
 ) -> csr_matrix:
     """
@@ -370,7 +370,7 @@ def calculate_walktrap_neighborhoods(
             subgraphs before clustering. Defaults to 1.0.
 
     Returns:
-        csr_matrix: A binary neighborhood matrix (CSR) on Walktrap communities.
+        csr_matrix: A binary cluster matrix (CSR) on Walktrap communities.
 
     Raises:
         ValueError: If the subgraph has no edges after filtering.
@@ -400,9 +400,9 @@ def calculate_walktrap_neighborhoods(
     # Create a CSR matrix
     num_nodes = len(nodes)
     data = np.ones(len(row_indices), dtype=int)
-    neighborhoods = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
+    clusters = csr_matrix((data, (row_indices, col_indices)), shape=(num_nodes, num_nodes))
 
-    return neighborhoods
+    return clusters
 
 
 def _create_percentile_limited_subgraph(G: nx.Graph, fraction_shortest_edges: float) -> nx.Graph:

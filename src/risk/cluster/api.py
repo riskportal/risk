@@ -1,6 +1,6 @@
 """
-risk/neighborhoods/api
-~~~~~~~~~~~~~~~~~~~~~~
+risk/cluster/api
+~~~~~~~~~~~~~~~~
 """
 
 import copy
@@ -12,8 +12,8 @@ from scipy.sparse import csr_matrix
 
 from ..log import log_header, logger, params
 from ..utils import map_deprecated_kwarg
-from .neighborhoods import get_network_neighborhoods
-from .stats import (
+from .cluster import get_network_clusters
+from ._stats import (
     compute_binom_test,
     compute_chi2_test,
     compute_hypergeom_test,
@@ -21,14 +21,14 @@ from .stats import (
 )
 
 
-class NeighborhoodsAPI:
+class ClusterAPI:
     """
-    Handles the loading of statistical results and annotation significance for neighborhoods.
+    Handles the loading of statistical results and annotation significance for clusters.
 
-    The NeighborhoodsAPI class provides methods to load neighborhood results from statistical tests.
+    The ClusterAPI class provides methods to load cluster results from statistical tests.
     """
 
-    def load_neighborhoods_binom(
+    def load_clusters_binom(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
@@ -41,7 +41,7 @@ class NeighborhoodsAPI:
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Load significant neighborhoods for the network using the binomial test.
+        Load significant clusters for the network using the binomial test.
 
         Args:
             network (nx.Graph): The network graph.
@@ -58,15 +58,15 @@ class NeighborhoodsAPI:
             random_seed (int, optional): Seed for random number generation. Defaults to 888.
 
         Returns:
-            Dict[str, Any]: Computed significance of neighborhoods.
+            Dict[str, Any]: Computed significance of clusters.
         """
         log_header("Running binomial test")
         # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
         map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
         if "clustering" in kwargs:
             clustering = kwargs.pop("clustering")
-        # Compute neighborhood significance using the binomial test
-        return self._load_neighborhoods_by_statistical_test(
+        # Compute cluster significance using the binomial test
+        return self._load_clusters_by_statistical_test(
             network=network,
             annotation=annotation,
             clustering=clustering,
@@ -80,7 +80,7 @@ class NeighborhoodsAPI:
             **kwargs,
         )
 
-    def load_neighborhoods_chi2(
+    def load_clusters_chi2(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
@@ -93,7 +93,7 @@ class NeighborhoodsAPI:
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Load significant neighborhoods for the network using the chi-squared test.
+        Load significant clusters for the network using the chi-squared test.
 
         Args:
             network (nx.Graph): The network graph.
@@ -110,15 +110,15 @@ class NeighborhoodsAPI:
             random_seed (int, optional): Seed for random number generation. Defaults to 888.
 
         Returns:
-            Dict[str, Any]: Computed significance of neighborhoods.
+            Dict[str, Any]: Computed significance of clusters.
         """
         log_header("Running chi-squared test")
         # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
         map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
         if "clustering" in kwargs:
             clustering = kwargs.pop("clustering")
-        # Compute neighborhood significance using the chi-squared test
-        return self._load_neighborhoods_by_statistical_test(
+        # Compute cluster significance using the chi-squared test
+        return self._load_clusters_by_statistical_test(
             network=network,
             annotation=annotation,
             clustering=clustering,
@@ -132,7 +132,7 @@ class NeighborhoodsAPI:
             **kwargs,
         )
 
-    def load_neighborhoods_hypergeom(
+    def load_clusters_hypergeom(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
@@ -145,7 +145,7 @@ class NeighborhoodsAPI:
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Load significant neighborhoods for the network using the hypergeometric test.
+        Load significant clusters for the network using the hypergeometric test.
 
         Args:
             network (nx.Graph): The network graph.
@@ -162,15 +162,15 @@ class NeighborhoodsAPI:
             random_seed (int, optional): Seed for random number generation. Defaults to 888.
 
         Returns:
-            Dict[str, Any]: Computed significance of neighborhoods.
+            Dict[str, Any]: Computed significance of clusters.
         """
         log_header("Running hypergeometric test")
         # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
         map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
         if "clustering" in kwargs:
             clustering = kwargs.pop("clustering")
-        # Compute neighborhood significance using the hypergeometric test
-        return self._load_neighborhoods_by_statistical_test(
+        # Compute cluster significance using the hypergeometric test
+        return self._load_clusters_by_statistical_test(
             network=network,
             annotation=annotation,
             clustering=clustering,
@@ -184,7 +184,7 @@ class NeighborhoodsAPI:
             **kwargs,
         )
 
-    def load_neighborhoods_permutation(
+    def load_clusters_permutation(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
@@ -200,7 +200,7 @@ class NeighborhoodsAPI:
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Load significant neighborhoods for the network using the permutation test.
+        Load significant clusters for the network using the permutation test.
 
         Args:
             network (nx.Graph): The network graph.
@@ -213,26 +213,26 @@ class NeighborhoodsAPI:
             fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction threshold(s) for creating subgraphs.
                 Can be a single float for one threshold or a list/tuple of floats corresponding to multiple thresholds.
                 Defaults to 0.5.
-            score_metric (str, optional): Scoring metric for neighborhood significance. Defaults to "sum".
+            score_metric (str, optional): Scoring metric for cluster significance. Defaults to "sum".
             null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
             num_permutations (int, optional): Number of permutations for significance testing. Defaults to 1000.
             random_seed (int, optional): Seed for random number generation. Defaults to 888.
             max_workers (int, optional): Maximum number of workers for parallel computation. Defaults to 1.
 
         Returns:
-            Dict[str, Any]: Computed significance of neighborhoods.
+            Dict[str, Any]: Computed significance of clusters.
         """
         log_header("Running permutation test")
         # Log and display permutation test settings, which is unique to this test
-        logger.debug(f"Neighborhood scoring metric: '{score_metric}'")
+        logger.debug(f"Cluster scoring metric: '{score_metric}'")
         logger.debug(f"Number of permutations: {num_permutations}")
         logger.debug(f"Maximum workers: {max_workers}")
         # Backward-compat: map deprecated 'distance_metric' -> 'clustering'
         map_deprecated_kwarg(kwargs=kwargs, old="distance_metric", new="clustering")
         if "clustering" in kwargs:
             clustering = kwargs.pop("clustering")
-        # Compute neighborhood significance using the permutation test
-        return self._load_neighborhoods_by_statistical_test(
+        # Compute cluster significance using the permutation test
+        return self._load_clusters_by_statistical_test(
             network=network,
             annotation=annotation,
             clustering=clustering,
@@ -249,7 +249,7 @@ class NeighborhoodsAPI:
             **kwargs,
         )
 
-    def _load_neighborhoods_by_statistical_test(
+    def _load_clusters_by_statistical_test(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
@@ -264,12 +264,12 @@ class NeighborhoodsAPI:
         **kwargs,
     ):
         """
-        Load and compute significant neighborhoods for the network using a specified statistical test.
+        Load and compute significant clusters for the network using a specified statistical test.
 
         Args:
             network (nx.Graph): The input network graph.
             annotation (Dict[str, Any]): Annotation data associated with the network, including a "matrix" key with annotation values.
-            clustering (Union[str, List, Tuple, np.ndarray], optional): The clustering method(s) to define neighborhoods.
+            clustering (Union[str, List, Tuple, np.ndarray], optional): The clustering method(s) to define clusters.
                 Can be a single method (e.g., 'louvain', 'leiden') or a collection of methods. Defaults to "louvain".
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
@@ -281,17 +281,17 @@ class NeighborhoodsAPI:
             statistical_test_key (str, optional): Key or name of the statistical test to be applied (e.g., "hypergeom", "binom").
                 Used for logging and debugging. Defaults to "hypergeom".
             statistical_test_function (Any, optional): The function implementing the statistical test.
-                It should accept neighborhoods, annotation, null distribution, and additional kwargs.
+                It should accept clusters, annotation, null distribution, and additional kwargs.
                 Defaults to `compute_hypergeom_test`.
             **kwargs: Additional parameters to be passed to the statistical test function.
 
         Returns:
-            Dict[str, Any]: A dictionary containing the computed significance values for neighborhoods.
+            Dict[str, Any]: A dictionary containing the computed significance values for clusters.
         """
         # Log null distribution type
         logger.debug(f"Null distribution: '{null_distribution}'")
-        # Log neighborhood analysis parameters
-        params.log_neighborhoods(
+        # Log cluster analysis parameters
+        params.log_clusters(
             clustering=clustering,
             louvain_resolution=louvain_resolution,
             leiden_resolution=leiden_resolution,
@@ -304,8 +304,8 @@ class NeighborhoodsAPI:
 
         # Make a copy of the network to avoid modifying the original
         network = copy.copy(network)
-        # Load neighborhoods based on the network and clustering
-        neighborhoods = self._load_neighborhoods(
+        # Load clusters based on the network and clustering
+        clusters = self._load_clusters(
             network,
             clustering,
             louvain_resolution=louvain_resolution,
@@ -313,18 +313,18 @@ class NeighborhoodsAPI:
             fraction_shortest_edges=fraction_shortest_edges,
             random_seed=random_seed,
         )
-        # Apply statistical test function to compute neighborhood significance
-        neighborhood_significance = statistical_test_function(
-            neighborhoods=neighborhoods,
+        # Apply statistical test function to compute cluster significance
+        cluster_significance = statistical_test_function(
+            clusters=clusters,
             annotation=annotation["matrix"],
             null_distribution=null_distribution,
             **kwargs,
         )
 
-        # Return the computed neighborhood significance
-        return neighborhood_significance
+        # Return the computed cluster significance
+        return cluster_significance
 
-    def _load_neighborhoods(
+    def _load_clusters(
         self,
         network: nx.Graph,
         clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
@@ -334,7 +334,7 @@ class NeighborhoodsAPI:
         random_seed: int = 888,
     ) -> csr_matrix:
         """
-        Load significant neighborhoods for the network.
+        Load significant clusters for the network.
 
         Args:
             network (nx.Graph): The network graph.
@@ -349,7 +349,7 @@ class NeighborhoodsAPI:
             random_seed (int, optional): Seed for random number generation. Defaults to 888.
 
         Returns:
-            csr_matrix: Sparse neighborhood matrix calculated based on the selected clustering method(s).
+            csr_matrix: Sparse cluster matrix calculated based on the selected clustering method(s).
         """
         # Display the chosen clustering
         if clustering == "louvain":
@@ -359,13 +359,13 @@ class NeighborhoodsAPI:
         else:
             for_print_clustering = clustering
 
-        # Log and display neighborhood settings
+        # Log and display cluster settings
         logger.debug(f"Clustering: '{for_print_clustering}'")
         logger.debug(f"Edge length threshold: {fraction_shortest_edges}")
         logger.debug(f"Random seed: {random_seed}")
 
-        # Compute neighborhoods
-        neighborhoods = get_network_neighborhoods(
+        # Compute clusters
+        clusters = get_network_clusters(
             network,
             clustering,
             fraction_shortest_edges,
@@ -374,5 +374,5 @@ class NeighborhoodsAPI:
             random_seed=random_seed,
         )
 
-        # Return the sparse neighborhood matrix
-        return neighborhoods
+        # Return the sparse cluster matrix
+        return clusters

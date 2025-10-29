@@ -1,5 +1,5 @@
 """
-risk/_neighborhoods/_stats/_permutation
+risk/_clusters/_stats/_permutation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 

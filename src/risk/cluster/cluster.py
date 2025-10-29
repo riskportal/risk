@@ -1,6 +1,6 @@
 """
-risk/neighborhoods/neighborhoods
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/cluster/cluster
+~~~~~~~~~~~~~~~~~~~~
 """
 
 import random
@@ -15,20 +15,20 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from ..log import logger
 from ._community import (
-    calculate_greedy_modularity_neighborhoods,
-    calculate_label_propagation_neighborhoods,
-    calculate_leiden_neighborhoods,
-    calculate_louvain_neighborhoods,
-    calculate_markov_clustering_neighborhoods,
-    calculate_spinglass_neighborhoods,
-    calculate_walktrap_neighborhoods,
+    calculate_greedy_modularity_clusters,
+    calculate_label_propagation_clusters,
+    calculate_leiden_clusters,
+    calculate_louvain_clusters,
+    calculate_markov_clustering_clusters,
+    calculate_spinglass_clusters,
+    calculate_walktrap_clusters,
 )
 
 # Suppress DataConversionWarning
 warnings.filterwarnings(action="ignore", category=DataConversionWarning)
 
 
-def get_network_neighborhoods(
+def get_network_clusters(
     network: nx.Graph,
     clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
     fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 1.0,
@@ -37,7 +37,7 @@ def get_network_neighborhoods(
     random_seed: int = 888,
 ) -> csr_matrix:
     """
-    Calculate the combined neighborhoods for each node using sparse matrices.
+    Calculate the combined clusters for each node using sparse matrices.
 
     Args:
         network (nx.Graph): The network graph.
@@ -48,7 +48,7 @@ def get_network_neighborhoods(
         random_seed (int, optional): Random seed for methods requiring random initialization.
 
     Returns:
-        csr_matrix: The combined neighborhood matrix.
+        csr_matrix: The combined cluster matrix.
 
     Raises:
         ValueError: If the number of clustering methods does not match the number of edge length thresholds.
@@ -72,57 +72,53 @@ def get_network_neighborhoods(
     # Initialize a sparse LIL matrix for incremental updates
     num_nodes = network.number_of_nodes()
     # Initialize a sparse matrix with the same shape as the network
-    combined_neighborhoods = csr_matrix((num_nodes, num_nodes), dtype=np.uint8)
+    combined_clusters = csr_matrix((num_nodes, num_nodes), dtype=np.uint8)
     # Loop through each clustering method and corresponding edge rank fraction
     for metric, percentile in zip(clustering, fraction_shortest_edges):
-        # Compute neighborhoods for the specified metric
+        # Compute clusters for the specified metric
         if metric == "greedy":
-            neighborhoods = calculate_greedy_modularity_neighborhoods(
+            clusters = calculate_greedy_modularity_clusters(
                 network, fraction_shortest_edges=percentile
             )
         elif metric == "labelprop":
-            neighborhoods = calculate_label_propagation_neighborhoods(
+            clusters = calculate_label_propagation_clusters(
                 network, fraction_shortest_edges=percentile
             )
         elif metric == "leiden":
-            neighborhoods = calculate_leiden_neighborhoods(
+            clusters = calculate_leiden_clusters(
                 network,
                 resolution=leiden_resolution,
                 fraction_shortest_edges=percentile,
                 random_seed=random_seed,
             )
         elif metric == "louvain":
-            neighborhoods = calculate_louvain_neighborhoods(
+            clusters = calculate_louvain_clusters(
                 network,
                 resolution=louvain_resolution,
                 fraction_shortest_edges=percentile,
                 random_seed=random_seed,
             )
         elif metric == "markov":
-            neighborhoods = calculate_markov_clustering_neighborhoods(
+            clusters = calculate_markov_clustering_clusters(
                 network, fraction_shortest_edges=percentile
             )
         elif metric == "spinglass":
-            neighborhoods = calculate_spinglass_neighborhoods(
-                network, fraction_shortest_edges=percentile
-            )
+            clusters = calculate_spinglass_clusters(network, fraction_shortest_edges=percentile)
         elif metric == "walktrap":
-            neighborhoods = calculate_walktrap_neighborhoods(
-                network, fraction_shortest_edges=percentile
-            )
+            clusters = calculate_walktrap_clusters(network, fraction_shortest_edges=percentile)
         else:
             raise ValueError(
                 "Invalid clustering method. Choose from: 'greedy', 'labelprop',"
                 " 'leiden', 'louvain', 'markov', 'spinglass', 'walktrap'."
             )
 
-        # Add the sparse neighborhood matrix
-        combined_neighborhoods += neighborhoods
+        # Add the sparse cluster matrix
+        combined_clusters += clusters
 
     # Ensure maximum value in each row is set to 1
-    combined_neighborhoods = _set_max_row_value_to_one_sparse(combined_neighborhoods)
+    combined_clusters = _set_max_row_value_to_one_sparse(combined_clusters)
 
-    return combined_neighborhoods
+    return combined_clusters
 
 
 def _set_max_row_value_to_one_sparse(matrix: csr_matrix) -> csr_matrix:
@@ -144,27 +140,27 @@ def _set_max_row_value_to_one_sparse(matrix: csr_matrix) -> csr_matrix:
     return matrix
 
 
-def process_neighborhoods(
+def process_clusters(
     network: nx.Graph,
-    neighborhoods: Dict[str, Any],
+    clusters: Dict[str, Any],
     impute_depth: int = 0,
     prune_threshold: float = 0.0,
 ) -> Dict[str, Any]:
     """
-    Process neighborhoods based on the imputation and pruning settings.
+    Process clusters based on the imputation and pruning settings.
 
     Args:
         network (nx.Graph): The network data structure used for imputing and pruning neighbors.
-        neighborhoods (Dict[str, Any]): Dictionary containing 'significance_matrix', 'significant_binary_significance_matrix', and 'significant_significance_matrix'.
+        clusters (Dict[str, Any]): Dictionary containing 'significance_matrix', 'significant_binary_significance_matrix', and 'significant_significance_matrix'.
         impute_depth (int, optional): Depth for imputing neighbors. Defaults to 0.
         prune_threshold (float, optional): Distance threshold for pruning neighbors. Defaults to 0.0.
 
     Returns:
-        Dict[str, Any]: Processed neighborhoods data, including the updated matrices and significance counts.
+        Dict[str, Any]: Processed clusters data, including the updated matrices and significance counts.
     """
-    significance_matrix = neighborhoods["significance_matrix"]
-    significant_binary_significance_matrix = neighborhoods["significant_binary_significance_matrix"]
-    significant_significance_matrix = neighborhoods["significant_significance_matrix"]
+    significance_matrix = clusters["significance_matrix"]
+    significant_binary_significance_matrix = clusters["significant_binary_significance_matrix"]
+    significant_significance_matrix = clusters["significant_significance_matrix"]
     logger.debug(f"Imputation depth: {impute_depth}")
     if impute_depth:
         (
@@ -191,13 +187,13 @@ def process_neighborhoods(
             distance_threshold=prune_threshold,
         )
 
-    neighborhood_significance_counts = np.sum(significant_binary_significance_matrix, axis=0)
+    cluster_significance_counts = np.sum(significant_binary_significance_matrix, axis=0)
     node_significance_sums = np.sum(significance_matrix, axis=1)
     return {
         "significance_matrix": significance_matrix,
         "significant_binary_significance_matrix": significant_binary_significance_matrix,
         "significant_significance_matrix": significant_significance_matrix,
-        "neighborhood_significance_counts": neighborhood_significance_counts,
+        "cluster_significance_counts": cluster_significance_counts,
         "node_significance_sums": node_significance_sums,
     }
 

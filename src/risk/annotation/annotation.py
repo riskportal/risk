@@ -123,19 +123,19 @@ def load_annotation(
 def define_top_annotation(
     network: nx.Graph,
     ordered_annotation_labels: List[str],
-    neighborhood_significance_sums: List[int],
+    cluster_significance_sums: List[int],
     significant_significance_matrix: np.ndarray,
     significant_binary_significance_matrix: np.ndarray,
     min_cluster_size: int = 5,
     max_cluster_size: int = 1000,
 ) -> pd.DataFrame:
     """
-    Define top annotations based on neighborhood significance sums and binary significance matrix.
+    Define top annotations based on cluster significance sums and binary significance matrix.
 
     Args:
         network (NetworkX graph): The network graph.
         ordered_annotation_labels (list of str): List of ordered annotation labels.
-        neighborhood_significance_sums (list of int): List of neighborhood significance sums.
+        cluster_significance_sums (list of int): List of cluster significance sums.
         significant_significance_matrix (np.ndarray): Enrichment matrix below alpha threshold.
         significant_binary_significance_matrix (np.ndarray): Binary significance matrix below alpha threshold.
         min_cluster_size (int, optional): Minimum cluster size. Defaults to 5.
@@ -146,12 +146,12 @@ def define_top_annotation(
     """
     # Sum the columns of the significant significance matrix (positive floating point values)
     significant_significance_scores = significant_significance_matrix.sum(axis=0)
-    # Create DataFrame to store annotations, their neighborhood significance sums, and significance scores
+    # Create DataFrame to store annotations, their cluster significance sums, and significance scores
     annotation_significance_matrix = pd.DataFrame(
         {
             "id": range(len(ordered_annotation_labels)),
             "full_terms": ordered_annotation_labels,
-            "significant_neighborhood_significance_sums": neighborhood_significance_sums,
+            "significant_cluster_significance_sums": cluster_significance_sums,
             "significant_significance_score": significant_significance_scores,
         }
     )
@@ -159,11 +159,11 @@ def define_top_annotation(
     # Apply size constraints to identify potential significant annotations
     annotation_significance_matrix.loc[
         (
-            annotation_significance_matrix["significant_neighborhood_significance_sums"]
+            annotation_significance_matrix["significant_cluster_significance_sums"]
             >= min_cluster_size
         )
         & (
-            annotation_significance_matrix["significant_neighborhood_significance_sums"]
+            annotation_significance_matrix["significant_cluster_significance_sums"]
             <= max_cluster_size
         ),
         "significant_annotation",
@@ -179,11 +179,11 @@ def define_top_annotation(
     for attribute in annotation_significance_matrix.index.values[
         annotation_significance_matrix["significant_annotation"]
     ]:
-        # Identify significant neighborhoods based on the binary significance matrix
-        significant_neighborhoods = list(
+        # Identify significant clusters based on the binary significance matrix
+        significant_clusters = list(
             compress(list(network), significant_binary_significance_matrix[:, attribute])
         )
-        significant_network = nx.subgraph(network, significant_neighborhoods)
+        significant_network = nx.subgraph(network, significant_clusters)
         # Analyze connected components within the significant subnetwork
         connected_components = sorted(
             nx.connected_components(significant_network), key=len, reverse=True

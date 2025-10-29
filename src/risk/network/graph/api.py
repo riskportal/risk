@@ -11,9 +11,9 @@ import pandas as pd
 
 from ...annotation import define_top_annotation
 from ...log import log_header, logger, params
-from ...neighborhoods import (
+from ...cluster import (
     define_domains,
-    process_neighborhoods,
+    process_clusters,
     trim_domains,
 )
 from .graph import Graph
@@ -24,14 +24,14 @@ class GraphAPI:
     """
     Handles the loading of network graphs and associated data.
 
-    The GraphAPI class provides methods to load and process network graphs, annotations, and neighborhoods.
+    The GraphAPI class provides methods to load and process network graphs, annotations, and clusters.
     """
 
     def load_graph(
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        neighborhoods: Dict[str, Any],
+        clusters: Dict[str, Any],
         tail: str = "right",
         pval_cutoff: float = 0.01,
         fdr_cutoff: float = 0.9999,
@@ -50,7 +50,7 @@ class GraphAPI:
         Args:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            neighborhoods (Dict[str, Any]): Neighborhood significance data.
+            clusters (Dict[str, Any]): Cluster significance data.
             tail (str, optional): Type of significance tail ("right", "left", "both"). Defaults to "right".
             pval_cutoff (float, optional): p-value cutoff for significance. Defaults to 0.01.
             fdr_cutoff (float, optional): FDR cutoff for significance. Defaults to 0.9999.
@@ -69,7 +69,7 @@ class GraphAPI:
             Graph: A fully initialized and processed Graph object.
         """
         # Log the parameters and display headers
-        log_header("Finding significant neighborhoods")
+        log_header("Finding significant clusters")
         params.log_graph(
             tail=tail,
             pval_cutoff=pval_cutoff,
@@ -92,20 +92,20 @@ class GraphAPI:
         logger.debug(
             f"Significance tail: '{tail}' ({'enrichment' if tail == 'right' else 'depletion' if tail == 'left' else 'both'})"
         )
-        # Calculate significant neighborhoods based on the provided parameters
-        significant_neighborhoods = calculate_significance_matrices(
-            neighborhoods["depletion_pvals"],
-            neighborhoods["enrichment_pvals"],
+        # Calculate significant clusters based on the provided parameters
+        significant_clusters = calculate_significance_matrices(
+            clusters["depletion_pvals"],
+            clusters["enrichment_pvals"],
             tail=tail,
             pval_cutoff=pval_cutoff,
             fdr_cutoff=fdr_cutoff,
         )
 
-        log_header("Processing neighborhoods")
-        # Process neighborhoods by imputing and pruning based on the given settings
-        processed_neighborhoods = process_neighborhoods(
+        log_header("Processing clusters")
+        # Process clusters by imputing and pruning based on the given settings
+        processed_clusters = process_clusters(
             network=network,
-            neighborhoods=significant_neighborhoods,
+            clusters=significant_clusters,
             impute_depth=impute_depth,
             prune_threshold=prune_threshold,
         )
@@ -113,24 +113,22 @@ class GraphAPI:
         log_header("Finding top annotations")
         logger.debug(f"Min cluster size: {min_cluster_size}")
         logger.debug(f"Max cluster size: {max_cluster_size}")
-        # Define top annotations based on processed neighborhoods
+        # Define top annotations based on processed clusters
         top_annotation = self._define_top_annotation(
             network=network,
             annotation=annotation,
-            neighborhoods=processed_neighborhoods,
+            clusters=processed_clusters,
             min_cluster_size=min_cluster_size,
             max_cluster_size=max_cluster_size,
         )
 
         log_header("Optimizing distance threshold for domains")
-        # Extract the significant significance matrix from the neighborhoods data
-        significant_neighborhoods_significance = processed_neighborhoods[
-            "significant_significance_matrix"
-        ]
+        # Extract the significant significance matrix from the clusters data
+        significant_clusters_significance = processed_clusters["significant_significance_matrix"]
         # Define domains in the network using the specified clustering settings
         domains = define_domains(
             top_annotation=top_annotation,
-            significant_neighborhoods_significance=significant_neighborhoods_significance,
+            significant_clusters_significance=significant_clusters_significance,
             linkage_criterion=linkage_criterion,
             linkage_method=linkage_method,
             linkage_metric=linkage_metric,
@@ -147,13 +145,13 @@ class GraphAPI:
         # Prepare node mapping and significance sums for the final Graph object
         ordered_nodes = annotation["ordered_nodes"]
         node_label_to_id = dict(zip(ordered_nodes, range(len(ordered_nodes))))
-        node_significance_sums = processed_neighborhoods["node_significance_sums"]
+        node_significance_sums = processed_clusters["node_significance_sums"]
 
         # Return the fully initialized Graph object
         return Graph(
             network=network,
             annotation=annotation,
-            neighborhoods=neighborhoods,
+            clusters=clusters,
             domains=domains,
             trimmed_domains=trimmed_domains,
             node_label_to_node_id_map=node_label_to_id,
@@ -164,7 +162,7 @@ class GraphAPI:
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        neighborhoods: Dict[str, Any],
+        clusters: Dict[str, Any],
         min_cluster_size: int = 5,
         max_cluster_size: int = 1000,
     ) -> pd.DataFrame:
@@ -174,25 +172,23 @@ class GraphAPI:
         Args:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): Annotation data for the network.
-            neighborhoods (Dict[str, Any]): Neighborhood significance data.
+            clusters (Dict[str, Any]): Cluster significance data.
             min_cluster_size (int, optional): Minimum size for clusters. Defaults to 5.
             max_cluster_size (int, optional): Maximum size for clusters. Defaults to 1000.
 
         Returns:
-            Dict[str, Any]: Top annotations identified within the network.
+            pd.DataFrame: Top annotations identified within the network.
         """
-        # Extract necessary data from annotation and neighborhoods
+        # Extract necessary data from annotation and clusters
         ordered_annotation = annotation["ordered_annotation"]
-        neighborhood_significance_sums = neighborhoods["neighborhood_significance_counts"]
-        significant_significance_matrix = neighborhoods["significant_significance_matrix"]
-        significant_binary_significance_matrix = neighborhoods[
-            "significant_binary_significance_matrix"
-        ]
+        cluster_significance_sums = clusters["cluster_significance_counts"]
+        significant_significance_matrix = clusters["significant_significance_matrix"]
+        significant_binary_significance_matrix = clusters["significant_binary_significance_matrix"]
         # Call external function to define top annotations
         return define_top_annotation(
             network=network,
             ordered_annotation_labels=ordered_annotation,
-            neighborhood_significance_sums=neighborhood_significance_sums,
+            cluster_significance_sums=cluster_significance_sums,
             significant_significance_matrix=significant_significance_matrix,
             significant_binary_significance_matrix=significant_binary_significance_matrix,
             min_cluster_size=min_cluster_size,

@@ -16,28 +16,28 @@ class Summary:
     """
     Handles the processing, storage, and export of network analysis results.
 
-    The Results class provides methods to process significance and depletion data, compute
-    FDR-corrected q-values, and structure information on domains and annotations into a
-    DataFrame. It also offers functionality to export the processed data in CSV, JSON,
-    and text formats for analysis and reporting.
+    The Summary class provides methods to process significance and depletion data,
+    compute FDR-corrected q-values, and structure information on domains and
+    annotations into a DataFrame. It also offers functionality to export the
+    processed data in CSV, JSON, and text formats for analysis and reporting.
     """
 
     def __init__(
         self,
         annotation: Dict[str, Any],
-        neighborhoods: Dict[str, Any],
+        clusters: Dict[str, Any],
         graph,  # Avoid type hinting Graph to prevent circular imports
     ):
         """
-        Initialize the Results object with analysis components.
+        Initialize the Summary object with analysis components.
 
         Args:
             annotation (Dict[str, Any]): Annotation data, including ordered annotations and matrix of associations.
-            neighborhoods (Dict[str, Any]): Neighborhood data containing p-values for significance and depletion analysis.
+            clusters (Dict[str, Any]): Cluster data containing p-values for significance and depletion analysis.
             graph (Graph): Graph object representing domain-to-node and node-to-label mappings.
         """
         self.annotation = annotation
-        self.neighborhoods = neighborhoods
+        self.clusters = clusters
         self.graph = graph
 
     def to_csv(self, filepath: str) -> None:
@@ -88,8 +88,8 @@ class Summary:
         """
         log_header("Loading analysis summary")
         # Calculate significance and depletion q-values from p-value matrices in annotation
-        enrichment_pvals = self.neighborhoods["enrichment_pvals"]
-        depletion_pvals = self.neighborhoods["depletion_pvals"]
+        enrichment_pvals = self.clusters["enrichment_pvals"]
+        depletion_pvals = self.clusters["depletion_pvals"]
         enrichment_qvals = self._calculate_qvalues(enrichment_pvals)
         depletion_qvals = self._calculate_qvalues(depletion_pvals)
 

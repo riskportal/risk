@@ -1,6 +1,6 @@
 """
-risk/neighborhoods/domains
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/cluster/label
+~~~~~~~~~~~~~~~~~~
 """
 
 from itertools import product
@@ -30,7 +30,7 @@ LINKAGE_METRICS = {
 
 def define_domains(
     top_annotation: pd.DataFrame,
-    significant_neighborhoods_significance: np.ndarray,
+    significant_clusters_significance: np.ndarray,
     linkage_criterion: str,
     linkage_method: str,
     linkage_metric: str,
@@ -42,7 +42,7 @@ def define_domains(
 
     Args:
         top_annotation (pd.DataFrame): DataFrame of top annotations data for the network nodes.
-        significant_neighborhoods_significance (np.ndarray): The binary significance matrix below alpha.
+        significant_clusters_significance (np.ndarray): The binary significance matrix below alpha.
         linkage_criterion (str): The clustering criterion for defining groups. Choose "off" to disable clustering.
         linkage_method (str): The linkage method for clustering. Choose "auto" to optimize.
         linkage_metric (str): The linkage metric for clustering. Choose "auto" to optimize.
@@ -66,7 +66,7 @@ def define_domains(
         top_annotation["domain"] = range(1, n_rows + 1)
     else:
         # Transpose the matrix to cluster annotations
-        m = significant_neighborhoods_significance[:, top_annotation["significant_annotation"]].T
+        m = significant_clusters_significance[:, top_annotation["significant_annotation"]].T
         # Safeguard the matrix by replacing NaN, Inf, and -Inf values
         m = _safeguard_matrix(m)
         try:
@@ -99,7 +99,7 @@ def define_domains(
 
     # Create DataFrames to store domain information
     node_to_significance = pd.DataFrame(
-        data=significant_neighborhoods_significance,
+        data=significant_clusters_significance,
         columns=[top_annotation.index.values, top_annotation["domain"]],
     )
     node_to_domain = node_to_significance.T.groupby(level="domain").sum().T
@@ -152,9 +152,9 @@ def trim_domains(
     top_annotation["domain"] = top_annotation["domain"].replace(to_remove, invalid_domain_id)
     domains.loc[domains["primary_domain"].isin(to_remove), ["primary_domain"]] = invalid_domain_id
 
-    # Normalize "num significant neighborhoods" by percentile for each domain and scale to 0-10
+    # Normalize "num significant clusters" by percentile for each domain and scale to 0-10
     top_annotation["normalized_value"] = top_annotation.groupby("domain")[
-        "significant_neighborhood_significance_sums"
+        "significant_cluster_significance_sums"
     ].transform(lambda x: (x.rank(pct=True) * 10).apply(np.ceil).astype(int))
     # Modify the lambda function to pass both full_terms and significant_significance_score
     top_annotation["combined_terms"] = top_annotation.apply(

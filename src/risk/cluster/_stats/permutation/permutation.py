@@ -1,6 +1,6 @@
 """
-risk/neighborhoods/stats/_permutation/_permutation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/cluster/_stats/permutation/permutation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 from multiprocessing import Manager, get_context
@@ -16,7 +16,7 @@ from ._test_functions import DISPATCH_TEST_FUNCTIONS
 
 
 def compute_permutation_test(
-    neighborhoods: csr_matrix,
+    clusters: csr_matrix,
     annotation: csr_matrix,
     score_metric: str = "sum",
     null_distribution: str = "network",
@@ -25,10 +25,10 @@ def compute_permutation_test(
     max_workers: int = 1,
 ) -> Dict[str, Any]:
     """
-    Compute permutation test for enrichment and depletion in neighborhoods.
+    Compute permutation test for enrichment and depletion in clusters.
 
     Args:
-        neighborhoods (csr_matrix): Sparse binary matrix representing neighborhoods.
+        clusters (csr_matrix): Sparse binary matrix representing clusters.
         annotation (csr_matrix): Sparse binary matrix representing annotation.
         score_metric (str, optional): Metric to use for scoring ('sum' or 'stdev'). Defaults to "sum".
         null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
@@ -41,16 +41,16 @@ def compute_permutation_test(
     """
     # Ensure that the matrices are in the correct format and free of NaN values
     # NOTE: Keep the data type as float32 to avoid locking issues with dot product operations
-    neighborhoods = neighborhoods.astype(np.float32)
+    clusters = clusters.astype(np.float32)
     annotation = annotation.astype(np.float32)
-    # Retrieve the appropriate neighborhood score function based on the metric
-    neighborhood_score_func = DISPATCH_TEST_FUNCTIONS[score_metric]
+    # Retrieve the appropriate cluster score function based on the metric
+    cluster_score_func = DISPATCH_TEST_FUNCTIONS[score_metric]
 
     # Run the permutation test to calculate depletion and enrichment counts
     counts_depletion, counts_enrichment = _run_permutation_test(
-        neighborhoods=neighborhoods,
+        clusters=clusters,
         annotation=annotation,
-        neighborhood_score_func=neighborhood_score_func,
+        cluster_score_func=cluster_score_func,
         null_distribution=null_distribution,
         num_permutations=num_permutations,
         random_seed=random_seed,
@@ -68,9 +68,9 @@ def compute_permutation_test(
 
 
 def _run_permutation_test(
-    neighborhoods: csr_matrix,
+    clusters: csr_matrix,
     annotation: csr_matrix,
-    neighborhood_score_func: Callable,
+    cluster_score_func: Callable,
     null_distribution: str = "network",
     num_permutations: int = 1000,
     random_seed: int = 888,
@@ -80,9 +80,9 @@ def _run_permutation_test(
     Run the permutation test to calculate depletion and enrichment counts.
 
     Args:
-        neighborhoods (csr_matrix): Sparse binary matrix representing neighborhoods.
+        clusters (csr_matrix): Sparse binary matrix representing clusters.
         annotation (csr_matrix): Sparse binary matrix representing annotation.
-        neighborhood_score_func (Callable): Function to calculate neighborhood scores.
+        cluster_score_func (Callable): Function to calculate cluster scores.
         null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
         num_permutations (int, optional): Number of permutations. Defaults to 1000.
         random_seed (int, optional): Seed for random number generation. Defaults to 888.
@@ -109,16 +109,14 @@ def _run_permutation_test(
     # Replace NaNs with zeros in the sparse annotation matrix
     annotation.data[np.isnan(annotation.data)] = 0
     annotation_matrix_obsv = annotation[idxs]
-    neighborhoods_matrix_obsv = neighborhoods.T[idxs].T
-    # Calculate observed neighborhood scores
+    clusters_matrix_obsv = clusters.T[idxs].T
+    # Calculate observed cluster scores
     with np.errstate(invalid="ignore", divide="ignore"):
-        observed_neighborhood_scores = neighborhood_score_func(
-            neighborhoods_matrix_obsv, annotation_matrix_obsv
-        )
+        observed_cluster_scores = cluster_score_func(clusters_matrix_obsv, annotation_matrix_obsv)
 
     # Initialize count matrices for depletion and enrichment
-    counts_depletion = np.zeros(observed_neighborhood_scores.shape)
-    counts_enrichment = np.zeros(observed_neighborhood_scores.shape)
+    counts_depletion = np.zeros(observed_cluster_scores.shape)
+    counts_enrichment = np.zeros(observed_cluster_scores.shape)
     # Determine the number of permutations to run in each worker process
     subset_size = num_permutations // max_workers
     remainder = num_permutations % max_workers
@@ -145,9 +143,9 @@ def _run_permutation_test(
                 (
                     permutation_batches[i],  # Pass the batch of precomputed permutations
                     annotation,
-                    neighborhoods_matrix_obsv,
-                    observed_neighborhood_scores,
-                    neighborhood_score_func,
+                    clusters_matrix_obsv,
+                    observed_cluster_scores,
+                    cluster_score_func,
                     num_permutations,
                     progress_counter,
                     max_workers,
@@ -176,9 +174,9 @@ def _run_permutation_test(
 def _permutation_process_batch(
     permutations: Union[List, Tuple, np.ndarray],
     annotation_matrix: csr_matrix,
-    neighborhoods_matrix_obsv: csr_matrix,
-    observed_neighborhood_scores: np.ndarray,
-    neighborhood_score_func: Callable,
+    clusters_matrix_obsv: csr_matrix,
+    observed_cluster_scores: np.ndarray,
+    cluster_score_func: Callable,
     num_permutations: int,
     progress_counter: ValueProxy,
     max_workers: int,
@@ -189,9 +187,9 @@ def _permutation_process_batch(
     Args:
         permutations (Union[List, Tuple, np.ndarray]): Permutation batch to process.
         annotation_matrix (csr_matrix): Sparse binary matrix representing annotation.
-        neighborhoods_matrix_obsv (csr_matrix): Sparse binary matrix representing observed neighborhoods.
-        observed_neighborhood_scores (np.ndarray): Observed neighborhood scores.
-        neighborhood_score_func (Callable): Function to calculate neighborhood scores.
+        clusters_matrix_obsv (csr_matrix): Sparse binary matrix representing observed clusters.
+        observed_cluster_scores (np.ndarray): Observed cluster scores.
+        cluster_score_func (Callable): Function to calculate cluster scores.
         num_permutations (int): Number of total permutations across all subsets.
         progress_counter (multiprocessing.managers.ValueProxy): Shared counter for tracking progress.
         max_workers (int): Number of workers for multiprocessing.
@@ -200,8 +198,8 @@ def _permutation_process_batch(
         tuple: Local counts of depletion and enrichment.
     """
     # Initialize local count matrices for this worker
-    local_counts_depletion = np.zeros(observed_neighborhood_scores.shape)
-    local_counts_enrichment = np.zeros(observed_neighborhood_scores.shape)
+    local_counts_depletion = np.zeros(observed_cluster_scores.shape)
+    local_counts_enrichment = np.zeros(observed_cluster_scores.shape)
 
     # Limit the number of threads used by NumPy's BLAS implementation to 1 when more than one worker is used
     # NOTE: This does not work for Mac M chips due to a bug in the threadpoolctl package
@@ -216,19 +214,19 @@ def _permutation_process_batch(
         for permuted_idxs in permutations:
             # Apply precomputed permutation
             annotation_matrix_permut = annotation_matrix[permuted_idxs]
-            # Calculate permuted neighborhood scores
+            # Calculate permuted cluster scores
             with np.errstate(invalid="ignore", divide="ignore"):
-                permuted_neighborhood_scores = neighborhood_score_func(
-                    neighborhoods_matrix_obsv, annotation_matrix_permut
+                permuted_cluster_scores = cluster_score_func(
+                    clusters_matrix_obsv, annotation_matrix_permut
                 )
 
             # Update local depletion and enrichment counts
             local_counts_depletion = np.add(
-                local_counts_depletion, permuted_neighborhood_scores <= observed_neighborhood_scores
+                local_counts_depletion, permuted_cluster_scores <= observed_cluster_scores
             )
             local_counts_enrichment = np.add(
                 local_counts_enrichment,
-                permuted_neighborhood_scores >= observed_neighborhood_scores,
+                permuted_cluster_scores >= observed_cluster_scores,
             )
 
             # Update progress

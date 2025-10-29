@@ -5,16 +5,16 @@ risk/risk
 
 from .annotation import AnnotationHandler
 from .log import params, set_global_verbosity
-from .neighborhoods import NeighborhoodsAPI
+from .cluster import ClusterAPI
 from .network import GraphAPI, NetworkAPI, PlotterAPI
 
 
-class RISK(NetworkAPI, AnnotationHandler, NeighborhoodsAPI, GraphAPI, PlotterAPI):
+class RISK(NetworkAPI, AnnotationHandler, ClusterAPI, GraphAPI, PlotterAPI):
     """
     RISK: A class for network analysis and visualization.
 
     The RISK class integrates functionalities for loading networks, processing annotations,
-    performing network-based statistical analysis to quantify neighborhood relationships,
+    performing network-based statistical analysis to quantify cluster relationships,
     and visualizing networks and their properties.
     """
 

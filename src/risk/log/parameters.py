@@ -22,7 +22,7 @@ class Params:
     Handles the storage and logging of various parameters for network analysis.
 
     The Params class provides methods to log parameters related to different components of the analysis,
-    such as the network, annotation, neighborhoods, graph, and plotter settings. It also stores
+    such as the network, annotation, clusters, graph, and plotter settings. It also stores
     the current datetime when the parameters were initialized.
     """
 
@@ -35,7 +35,7 @@ class Params:
         """Initialize the parameter dictionaries for different components."""
         self.network = {}
         self.annotation = {}
-        self.neighborhoods = {}
+        self.clusters = {}
         self.graph = {}
         self.plotter = {}
 
@@ -57,14 +57,14 @@ class Params:
         """
         self.annotation = {**self.annotation, **kwargs}
 
-    def log_neighborhoods(self, **kwargs) -> None:
+    def log_clusters(self, **kwargs) -> None:
         """
-        Log neighborhood-related parameters.
+        Log cluster-related parameters.
 
         Args:
-            **kwargs: Neighborhood parameters to log.
+            **kwargs: Cluster parameters to log.
         """
-        self.neighborhoods = {**self.neighborhoods, **kwargs}
+        self.clusters = {**self.clusters, **kwargs}
 
     def log_graph(self, **kwargs) -> None:
         """
@@ -152,7 +152,7 @@ class Params:
                 "annotation": self.annotation,
                 "datetime": self.datetime,
                 "graph": self.graph,
-                "neighborhoods": self.neighborhoods,
+                "clusters": self.clusters,
                 "network": self.network,
                 "plotter": self.plotter,
             }

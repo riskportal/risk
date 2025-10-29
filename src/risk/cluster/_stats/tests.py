@@ -1,6 +1,6 @@
 """
-risk/neighborhoods/stats/_tests
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/cluster/_stats/tests
+~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 from typing import Any, Dict
@@ -11,15 +11,15 @@ from scipy.stats import binom, chi2, hypergeom
 
 
 def compute_binom_test(
-    neighborhoods: csr_matrix,
+    clusters: csr_matrix,
     annotation: csr_matrix,
     null_distribution: str = "network",
 ) -> Dict[str, Any]:
     """
-    Compute Binomial test for enrichment and depletion in neighborhoods with selectable null distribution.
+    Compute Binomial test for enrichment and depletion in clusters with selectable null distribution.
 
     Args:
-        neighborhoods (csr_matrix): Sparse binary matrix representing neighborhoods.
+        clusters (csr_matrix): Sparse binary matrix representing clusters.
         annotation (csr_matrix): Sparse binary matrix representing annotation.
         null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
 
@@ -30,10 +30,10 @@ def compute_binom_test(
         ValueError: If an invalid null_distribution value is provided.
     """
     # Get the total number of nodes in the network
-    total_nodes = neighborhoods.shape[1]
+    total_nodes = clusters.shape[1]
 
     # Compute sums (remain sparse here)
-    neighborhood_sizes = neighborhoods.sum(axis=1)  # Row sums
+    cluster_sizes = clusters.sum(axis=1)  # Row sums
     annotation_totals = annotation.sum(axis=0)  # Column sums
     # Compute probabilities (convert to dense)
     if null_distribution == "network":
@@ -46,26 +46,26 @@ def compute_binom_test(
         )
 
     # Observed counts (sparse matrix multiplication)
-    annotated_counts = neighborhoods @ annotation  # Sparse result
+    annotated_counts = clusters @ annotation  # Sparse result
     annotated_counts_dense = annotated_counts.toarray()  # Convert for dense operations
 
     # Compute enrichment and depletion p-values
-    enrichment_pvals = 1 - binom.cdf(annotated_counts_dense - 1, neighborhood_sizes.A, p_values)
-    depletion_pvals = binom.cdf(annotated_counts_dense, neighborhood_sizes.A, p_values)
+    enrichment_pvals = 1 - binom.cdf(annotated_counts_dense - 1, cluster_sizes.A, p_values)
+    depletion_pvals = binom.cdf(annotated_counts_dense, cluster_sizes.A, p_values)
 
     return {"enrichment_pvals": enrichment_pvals, "depletion_pvals": depletion_pvals}
 
 
 def compute_chi2_test(
-    neighborhoods: csr_matrix,
+    clusters: csr_matrix,
     annotation: csr_matrix,
     null_distribution: str = "network",
 ) -> Dict[str, Any]:
     """
-    Compute chi-squared test for enrichment and depletion in neighborhoods with selectable null distribution.
+    Compute chi-squared test for enrichment and depletion in clusters with selectable null distribution.
 
     Args:
-        neighborhoods (csr_matrix): Sparse binary matrix representing neighborhoods.
+        clusters (csr_matrix): Sparse binary matrix representing clusters.
         annotation (csr_matrix): Sparse binary matrix representing annotation.
         null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
 
@@ -76,12 +76,12 @@ def compute_chi2_test(
         ValueError: If an invalid null_distribution value is provided.
     """
     # Total number of nodes in the network
-    total_node_count = neighborhoods.shape[0]
+    total_node_count = clusters.shape[0]
 
     if null_distribution == "network":
         # Case 1: Use all nodes as the background
         background_population = total_node_count
-        neighborhood_sums = neighborhoods.sum(axis=0)  # Column sums of neighborhoods
+        cluster_sums = clusters.sum(axis=0)  # Column sums of clusters
         annotation_sums = annotation.sum(axis=0)  # Column sums of annotations
     elif null_distribution == "annotation":
         # Case 2: Only consider nodes with at least one annotation
@@ -89,9 +89,7 @@ def compute_chi2_test(
             np.ravel(annotation.sum(axis=1)) > 0
         )  # Row-wise sum to filter nodes with annotations
         background_population = annotated_nodes.sum()  # Total number of annotated nodes
-        neighborhood_sums = neighborhoods[annotated_nodes].sum(
-            axis=0
-        )  # Neighborhood sums for annotated nodes
+        cluster_sums = clusters[annotated_nodes].sum(axis=0)  # Cluster sums for annotated nodes
         annotation_sums = annotation[annotated_nodes].sum(
             axis=0
         )  # Annotation sums for annotated nodes
@@ -101,13 +99,13 @@ def compute_chi2_test(
         )
 
     # Convert to dense arrays for downstream computations
-    neighborhood_sums = np.asarray(neighborhood_sums).reshape(-1, 1)  # Ensure column vector shape
+    cluster_sums = np.asarray(cluster_sums).reshape(-1, 1)  # Ensure column vector shape
     annotation_sums = np.asarray(annotation_sums).reshape(1, -1)  # Ensure row vector shape
 
-    # Observed values: number of annotated nodes in each neighborhood
-    observed = neighborhoods.T @ annotation  # Shape: (neighborhoods, annotation)
+    # Observed values: number of annotated nodes in each cluster
+    observed = clusters.T @ annotation  # Shape: (clusters, annotation)
     # Expected values under the null
-    expected = (neighborhood_sums @ annotation_sums) / background_population
+    expected = (cluster_sums @ annotation_sums) / background_population
     # Chi-squared statistic: sum((observed - expected)^2 / expected)
     with np.errstate(divide="ignore", invalid="ignore"):  # Handle divide-by-zero
         chi2_stat = np.where(expected > 0, np.power(observed - expected, 2) / expected, 0)
@@ -120,15 +118,15 @@ def compute_chi2_test(
 
 
 def compute_hypergeom_test(
-    neighborhoods: csr_matrix,
+    clusters: csr_matrix,
     annotation: csr_matrix,
     null_distribution: str = "network",
 ) -> Dict[str, Any]:
     """
-    Compute hypergeometric test for enrichment and depletion in neighborhoods with selectable null distribution.
+    Compute hypergeometric test for enrichment and depletion in clusters with selectable null distribution.
 
     Args:
-        neighborhoods (csr_matrix): Sparse binary matrix representing neighborhoods.
+        clusters (csr_matrix): Sparse binary matrix representing clusters.
         annotation (csr_matrix): Sparse binary matrix representing annotation.
         null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
 
@@ -139,10 +137,10 @@ def compute_hypergeom_test(
         ValueError: If an invalid null_distribution value is provided.
     """
     # Get the total number of nodes in the network
-    total_nodes = neighborhoods.shape[1]
+    total_nodes = clusters.shape[1]
 
     # Compute sums
-    neighborhood_sums = neighborhoods.sum(axis=0).A.flatten()  # Convert to dense array
+    cluster_sums = clusters.sum(axis=0).A.flatten()  # Convert to dense array
     annotation_sums = annotation.sum(axis=0).A.flatten()  # Convert to dense array
 
     if null_distribution == "network":
@@ -150,7 +148,7 @@ def compute_hypergeom_test(
     elif null_distribution == "annotation":
         annotated_nodes = annotation.sum(axis=1).A.flatten() > 0  # Boolean mask
         background_population = annotated_nodes.sum()
-        neighborhood_sums = neighborhoods[annotated_nodes].sum(axis=0).A.flatten()
+        cluster_sums = clusters[annotated_nodes].sum(axis=0).A.flatten()
         annotation_sums = annotation[annotated_nodes].sum(axis=0).A.flatten()
     else:
         raise ValueError(
@@ -158,19 +156,19 @@ def compute_hypergeom_test(
         )
 
     # Observed counts
-    annotated_in_neighborhood = neighborhoods.T @ annotation  # Sparse result
-    annotated_in_neighborhood = annotated_in_neighborhood.toarray()  # Convert to dense
+    annotated_in_cluster = clusters.T @ annotation  # Sparse result
+    annotated_in_cluster = annotated_in_cluster.toarray()  # Convert to dense
     # Align shapes for broadcasting
-    neighborhood_sums = neighborhood_sums.reshape(-1, 1)
+    cluster_sums = cluster_sums.reshape(-1, 1)
     annotation_sums = annotation_sums.reshape(1, -1)
     background_population = np.array(background_population).reshape(1, 1)
 
     # Compute hypergeometric p-values
     depletion_pvals = hypergeom.cdf(
-        annotated_in_neighborhood, background_population, annotation_sums, neighborhood_sums
+        annotated_in_cluster, background_population, annotation_sums, cluster_sums
     )
     enrichment_pvals = hypergeom.sf(
-        annotated_in_neighborhood - 1, background_population, annotation_sums, neighborhood_sums
+        annotated_in_cluster - 1, background_population, annotation_sums, cluster_sums
     )
 
     return {"depletion_pvals": depletion_pvals, "enrichment_pvals": enrichment_pvals}
