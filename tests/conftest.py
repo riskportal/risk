@@ -315,8 +315,8 @@ def graph(risk_obj, cytoscape_network, json_annotation):
     """
     network = cytoscape_network
     annotation = json_annotation
-    # Build neighborhoods based on the loaded network and annotation
-    neighborhoods = risk_obj.load_neighborhoods_permutation(
+    # Build clusters based on the loaded network and annotation
+    clusters = risk_obj.load_clusters_permutation(
         network=network,
         annotation=annotation,
         clustering="louvain",
@@ -329,11 +329,11 @@ def graph(risk_obj, cytoscape_network, json_annotation):
         random_seed=887,
         max_workers=1,
     )
-    # Build the graph using the neighborhoods
+    # Build the graph using the clusters
     graph = risk_obj.load_graph(
         network=network,
         annotation=annotation,
-        neighborhoods=neighborhoods,
+        clusters=clusters,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,

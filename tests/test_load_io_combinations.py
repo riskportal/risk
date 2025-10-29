@@ -39,7 +39,7 @@ def test_load_graphs(request, risk_obj, network_fixture, annotation_fixture):
     network = request.getfixturevalue(network_fixture)
     # Load the annotation using the specified fixture
     annotation = request.getfixturevalue(annotation_fixture)
-    neighborhoods = risk_obj.load_neighborhoods_permutation(
+    clusters = risk_obj.load_clusters_permutation(
         network=network,
         annotation=annotation,
         clustering="louvain",
@@ -53,30 +53,26 @@ def test_load_graphs(request, risk_obj, network_fixture, annotation_fixture):
         max_workers=1,
     )
 
-    # Validate neighborhoods structure
-    assert (
-        "depletion_pvals" in neighborhoods
-    ), "Neighborhoods should contain a 'depletion_pvals' key"
-    assert (
-        "enrichment_pvals" in neighborhoods
-    ), "Neighborhoods should contain an 'enrichment_pvals' key"
+    # Validate clusters structure
+    assert "depletion_pvals" in clusters, "Clusters should contain a 'depletion_pvals' key"
+    assert "enrichment_pvals" in clusters, "Clusters should contain an 'enrichment_pvals' key"
     assert isinstance(
-        neighborhoods["depletion_pvals"], np.ndarray
+        clusters["depletion_pvals"], np.ndarray
     ), "'depletion_pvals' should be a numpy array"
     assert isinstance(
-        neighborhoods["enrichment_pvals"], np.ndarray
+        clusters["enrichment_pvals"], np.ndarray
     ), "'enrichment_pvals' should be a numpy array"
     assert (
-        neighborhoods["depletion_pvals"].shape == neighborhoods["enrichment_pvals"].shape
+        clusters["depletion_pvals"].shape == clusters["enrichment_pvals"].shape
     ), "'depletion_pvals' and 'enrichment_pvals' should have the same shape"
     # Ensure that the p-value matrices are not empty
-    assert neighborhoods["depletion_pvals"].size > 0, "'depletion_pvals' array is empty"
-    assert neighborhoods["enrichment_pvals"].size > 0, "'enrichment_pvals' array is empty"
+    assert clusters["depletion_pvals"].size > 0, "'depletion_pvals' array is empty"
+    assert clusters["enrichment_pvals"].size > 0, "'enrichment_pvals' array is empty"
 
     graph = risk_obj.load_graph(
         network=network,
         annotation=annotation,
-        neighborhoods=neighborhoods,
+        clusters=clusters,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,

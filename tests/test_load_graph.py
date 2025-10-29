@@ -13,15 +13,15 @@ from risk.network.graph._summary import Summary
 
 def test_load_graph_with_json_annotation(risk_obj, cytoscape_network, json_annotation):
     """
-    Test loading a graph after generating neighborhoods with specific parameters using JSON annotation.
+    Test loading a graph after generating clusters with specific parameters using JSON annotation.
 
     Args:
-        risk_obj: The RISK object instance used for loading neighborhoods and graphs.
-        cytoscape_network: The network object to be used for neighborhood and graph generation.
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
         json_annotation: The JSON annotation associated with the network.
     """
-    # Load neighborhoods as a prerequisite
-    neighborhoods = risk_obj.load_neighborhoods_permutation(
+    # Load clusters as a prerequisite
+    clusters = risk_obj.load_clusters_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
         clustering="leiden",
@@ -38,7 +38,7 @@ def test_load_graph_with_json_annotation(risk_obj, cytoscape_network, json_annot
     graph = risk_obj.load_graph(
         network=cytoscape_network,
         annotation=json_annotation,
-        neighborhoods=neighborhoods,
+        clusters=clusters,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
@@ -61,15 +61,15 @@ def test_cluster_size_limits_with_json_annotation(risk_obj, cytoscape_network, j
     Test that statistically significant domains respect min and max cluster sizes using JSON annotation.
 
     Args:
-        risk_obj: The RISK object instance used for loading neighborhoods and graphs.
-        cytoscape_network: The network object to be used for neighborhood and graph generation.
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
         json_annotation: The JSON annotation associated with the network.
     """
     # Define different combinations of min and max cluster sizes
     cluster_size_combinations = [(5, 1000), (10, 500), (20, 300), (50, 200)]
     for min_cluster_size, max_cluster_size in cluster_size_combinations:
-        # Load neighborhoods as a prerequisite
-        neighborhoods = risk_obj.load_neighborhoods_permutation(
+        # Load clusters as a prerequisite
+        clusters = risk_obj.load_clusters_permutation(
             network=cytoscape_network,
             annotation=json_annotation,
             # Test multiple clustering methods
@@ -86,7 +86,7 @@ def test_cluster_size_limits_with_json_annotation(risk_obj, cytoscape_network, j
         graph = risk_obj.load_graph(
             network=cytoscape_network,
             annotation=json_annotation,
-            neighborhoods=neighborhoods,
+            clusters=clusters,
             tail="right",
             pval_cutoff=0.05,
             fdr_cutoff=1.0,
@@ -108,15 +108,15 @@ def test_cluster_size_limits_with_json_annotation(risk_obj, cytoscape_network, j
 
 def test_load_graph_with_dict_annotation(risk_obj, cytoscape_network, dict_annotation):
     """
-    Test loading a graph after generating neighborhoods with specific parameters using dictionary annotation.
+    Test loading a graph after generating clusters with specific parameters using dictionary annotation.
 
     Args:
-        risk_obj: The RISK object instance used for loading neighborhoods and graphs.
-        cytoscape_network: The network object to be used for neighborhood and graph generation.
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
         dict_annotation: The dictionary annotation associated with the network.
     """
-    # Load neighborhoods as a prerequisite
-    neighborhoods = risk_obj.load_neighborhoods_permutation(
+    # Load clusters as a prerequisite
+    clusters = risk_obj.load_clusters_permutation(
         network=cytoscape_network,
         annotation=dict_annotation,
         clustering="louvain",
@@ -132,7 +132,7 @@ def test_load_graph_with_dict_annotation(risk_obj, cytoscape_network, dict_annot
     graph = risk_obj.load_graph(
         network=cytoscape_network,
         annotation=dict_annotation,
-        neighborhoods=neighborhoods,
+        clusters=clusters,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
@@ -155,15 +155,15 @@ def test_cluster_size_limits_with_dict_annotation(risk_obj, cytoscape_network, d
     Test that statistically significant domains respect min and max cluster sizes using dictionary annotation.
 
     Args:
-        risk_obj: The RISK object instance used for loading neighborhoods and graphs.
-        cytoscape_network: The network object to be used for neighborhood and graph generation.
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
         dict_annotation: The dictionary annotation associated with the network.
     """
     # Define different combinations of min and max cluster sizes
     cluster_size_combinations = [(5, 1000), (10, 500), (20, 300), (50, 200)]
     for min_cluster_size, max_cluster_size in cluster_size_combinations:
-        # Load neighborhoods as a prerequisite
-        neighborhoods = risk_obj.load_neighborhoods_permutation(
+        # Load clusters as a prerequisite
+        clusters = risk_obj.load_clusters_permutation(
             network=cytoscape_network,
             annotation=dict_annotation,
             # Test multiple clustering methods
@@ -181,7 +181,7 @@ def test_cluster_size_limits_with_dict_annotation(risk_obj, cytoscape_network, d
         graph = risk_obj.load_graph(
             network=cytoscape_network,
             annotation=dict_annotation,
-            neighborhoods=neighborhoods,
+            clusters=clusters,
             tail="right",
             pval_cutoff=0.05,
             fdr_cutoff=1.0,
@@ -208,16 +208,16 @@ def test_linkage_criterion_and_auto_clustering_options(
     Test the linkage criterion and auto-clustering options for generating graphs.
 
     Args:
-        risk_obj: The RISK object instance used for loading neighborhoods and graphs.
-        cytoscape_network: The network object to be used for neighborhood and graph generation.
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
         json_annotation: The JSON annotation associated with the network.
     """
     # Define parameters for testing
     test_criteria = ["maxclust", "distance", "off"]
     min_cluster_size, max_cluster_size = 10, 200  # Fixed for simplicity
     for criterion in test_criteria:
-        # Load neighborhoods as a prerequisite
-        neighborhoods = risk_obj.load_neighborhoods_binom(
+        # Load clusters as a prerequisite
+        clusters = risk_obj.load_clusters_binom(
             network=cytoscape_network,
             annotation=json_annotation,
             clustering="louvain",
@@ -230,7 +230,7 @@ def test_linkage_criterion_and_auto_clustering_options(
         graph = risk_obj.load_graph(
             network=cytoscape_network,
             annotation=json_annotation,
-            neighborhoods=neighborhoods,
+            clusters=clusters,
             tail="right",
             pval_cutoff=0.05,
             fdr_cutoff=1.0,
@@ -255,12 +255,12 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
     Test that the Graph object contains the expected components.
 
     Args:
-        risk_obj: The RISK object instance used for loading neighborhoods and graphs.
-        cytoscape_network: The network object to be used for neighborhood and graph generation.
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
         json_annotation: The JSON annotation associated with the network.
     """
-    # Load neighborhoods as a prerequisite
-    neighborhoods = risk_obj.load_neighborhoods_permutation(
+    # Load clusters as a prerequisite
+    clusters = risk_obj.load_clusters_permutation(
         network=cytoscape_network,
         annotation=json_annotation,
         clustering="leiden",
@@ -276,7 +276,7 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
     graph = risk_obj.load_graph(
         network=cytoscape_network,
         annotation=json_annotation,
-        neighborhoods=neighborhoods,
+        clusters=clusters,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
@@ -322,7 +322,7 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
     assert isinstance(
         graph.node_coordinates, np.ndarray
     ), "Node coordinates should be a numpy array"
-    assert isinstance(graph.summary, Summary), "Summary should be an Summary object"
+    assert isinstance(graph.summary, Summary), "Summary should be a Summary object"
 
 
 def test_load_graph_summary(graph):
@@ -335,7 +335,7 @@ def test_load_graph_summary(graph):
     # Load the graph summary and validate its type
     summary = graph.summary.load()
 
-    assert isinstance(summary, pd.DataFrame), "Graph summary should be a dictionary"
+    assert isinstance(summary, pd.DataFrame), "Graph summary should be a DataFrame"
 
 
 def test_pop_domain(graph):
@@ -393,12 +393,12 @@ def test_invalid_clustering_args_raise(risk_obj, cytoscape_network, json_annotat
     Validate that invalid clustering options raise a ValueError (user error).
 
     Args:
-        risk_obj: The RISK object instance used for loading neighborhoods and graphs.
-        cytoscape_network: The network object to be used for neighborhood and graph generation.
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
         json_annotation: The JSON annotation associated with the network.
         bad_kwargs: A dict containing an intentionally invalid clustering parameter.
     """
-    neighborhoods = risk_obj.load_neighborhoods_binom(
+    clusters = risk_obj.load_clusters_binom(
         network=cytoscape_network,
         annotation=json_annotation,
         clustering="louvain",
@@ -412,7 +412,7 @@ def test_invalid_clustering_args_raise(risk_obj, cytoscape_network, json_annotat
         risk_obj.load_graph(
             network=cytoscape_network,
             annotation=json_annotation,
-            neighborhoods=neighborhoods,
+            clusters=clusters,
             tail="right",
             pval_cutoff=0.05,
             fdr_cutoff=1.0,
@@ -432,11 +432,11 @@ def test_off_criterion_bypasses_invalid_options(risk_obj, cytoscape_network, jso
     Verify that setting linkage_criterion='off' cleanly bypasses clustering validation and does not raise.
 
     Args:
-        risk_obj: The RISK object instance used for loading neighborhoods and graphs.
-        cytoscape_network: The network object to be used for neighborhood and graph generation.
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
         json_annotation: The JSON annotation associated with the network.
     """
-    neighborhoods = risk_obj.load_neighborhoods_binom(
+    clusters = risk_obj.load_clusters_binom(
         network=cytoscape_network,
         annotation=json_annotation,
         clustering="louvain",
@@ -449,7 +449,7 @@ def test_off_criterion_bypasses_invalid_options(risk_obj, cytoscape_network, jso
     graph = risk_obj.load_graph(
         network=cytoscape_network,
         annotation=json_annotation,
-        neighborhoods=neighborhoods,
+        clusters=clusters,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
