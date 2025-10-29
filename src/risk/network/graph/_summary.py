@@ -25,7 +25,7 @@ class Summary:
     def __init__(
         self,
         annotation: Dict[str, Any],
-        clusters: Dict[str, Any],
+        cluster_results: Dict[str, Any],
         graph,  # Avoid type hinting Graph to prevent circular imports
     ):
         """
@@ -33,11 +33,11 @@ class Summary:
 
         Args:
             annotation (Dict[str, Any]): Annotation data, including ordered annotations and matrix of associations.
-            clusters (Dict[str, Any]): Cluster data containing p-values for significance and depletion analysis.
+            cluster_results (Dict[str, Any]): Cluster data containing p-values for significance and depletion analysis.
             graph (Graph): Graph object representing domain-to-node and node-to-label mappings.
         """
         self.annotation = annotation
-        self.clusters = clusters
+        self.cluster_results = cluster_results
         self.graph = graph
 
     def to_csv(self, filepath: str) -> None:
@@ -88,8 +88,8 @@ class Summary:
         """
         log_header("Loading analysis summary")
         # Calculate significance and depletion q-values from p-value matrices in annotation
-        enrichment_pvals = self.clusters["enrichment_pvals"]
-        depletion_pvals = self.clusters["depletion_pvals"]
+        enrichment_pvals = self.cluster_results["enrichment_pvals"]
+        depletion_pvals = self.cluster_results["depletion_pvals"]
         enrichment_qvals = self._calculate_qvalues(enrichment_pvals)
         depletion_qvals = self._calculate_qvalues(depletion_pvals)
 

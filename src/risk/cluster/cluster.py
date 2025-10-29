@@ -140,9 +140,9 @@ def _set_max_row_value_to_one_sparse(matrix: csr_matrix) -> csr_matrix:
     return matrix
 
 
-def process_clusters(
+def process_significant_clusters(
     network: nx.Graph,
-    clusters: Dict[str, Any],
+    significant_clusters: Dict[str, Any],
     impute_depth: int = 0,
     prune_threshold: float = 0.0,
 ) -> Dict[str, Any]:
@@ -151,16 +151,18 @@ def process_clusters(
 
     Args:
         network (nx.Graph): The network data structure used for imputing and pruning neighbors.
-        clusters (Dict[str, Any]): Dictionary containing 'significance_matrix', 'significant_binary_significance_matrix', and 'significant_significance_matrix'.
+        significant_clusters (Dict[str, Any]): Dictionary containing 'significance_matrix', 'significant_binary_significance_matrix', and 'significant_significance_matrix'.
         impute_depth (int, optional): Depth for imputing neighbors. Defaults to 0.
         prune_threshold (float, optional): Distance threshold for pruning neighbors. Defaults to 0.0.
 
     Returns:
         Dict[str, Any]: Processed clusters data, including the updated matrices and significance counts.
     """
-    significance_matrix = clusters["significance_matrix"]
-    significant_binary_significance_matrix = clusters["significant_binary_significance_matrix"]
-    significant_significance_matrix = clusters["significant_significance_matrix"]
+    significance_matrix = significant_clusters["significance_matrix"]
+    significant_binary_significance_matrix = significant_clusters[
+        "significant_binary_significance_matrix"
+    ]
+    significant_significance_matrix = significant_clusters["significant_significance_matrix"]
     logger.debug(f"Imputation depth: {impute_depth}")
     if impute_depth:
         (

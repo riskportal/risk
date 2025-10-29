@@ -8,6 +8,7 @@ from typing import List, Tuple, Union
 
 import networkx as nx
 import numpy as np
+from scipy.sparse import csr_matrix
 
 from ..log import log_header, logger, params
 from .cluster import get_network_clusters
@@ -29,7 +30,7 @@ class ClusterAPI:
         fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
         random_seed: int = 888,
         **kwargs,
-    ):
+    ) -> csr_matrix:
         """
         Load clusters for the network.
 
@@ -46,7 +47,7 @@ class ClusterAPI:
         Returns:
             csr_matrix: The cluster matrix.
         """
-        log_header("Loading clusters")
+        log_header("Computing clusters")
         # Log and display cluster settings
         clustering_log = {
             "louvain": f"louvain (resolution={louvain_resolution})",
