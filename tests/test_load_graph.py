@@ -75,7 +75,7 @@ def test_cluster_size_limits_with_json_annotation(risk_obj, cytoscape_network, j
         # === Cluster and Stats ===
         clusters = risk_obj.load_clusters(
             network=cytoscape_network,
-            clustering=["louvain", "labelprop"],
+            clustering="louvain",
             louvain_resolution=8,
             fraction_shortest_edges=0.75,
             random_seed=887,
@@ -176,9 +176,9 @@ def test_cluster_size_limits_with_dict_annotation(risk_obj, cytoscape_network, d
         # === Cluster and Stats ===
         clusters = risk_obj.load_clusters(
             network=cytoscape_network,
-            clustering=["louvain", "labelprop"],
+            clustering="louvain",
             louvain_resolution=8,
-            fraction_shortest_edges=[0.75, 0.25],
+            fraction_shortest_edges=0.75,
             random_seed=887,
         )
         stats_results = risk_obj.run_permutation(

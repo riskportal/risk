@@ -24,10 +24,10 @@ class ClusterAPI:
     def load_clusters(
         self,
         network: nx.Graph,
-        clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
+        clustering: str = "louvain",
+        fraction_shortest_edges: float = 0.5,
         louvain_resolution: float = 0.1,
         leiden_resolution: float = 1.0,
-        fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 0.5,
         random_seed: int = 888,
         **kwargs,
     ) -> csr_matrix:
@@ -36,12 +36,11 @@ class ClusterAPI:
 
         Args:
             network (nx.Graph): The input network graph.
-            clustering (Union[str, List, Tuple, np.ndarray], optional): The clustering method(s) to define clusters.
-                Can be a single method (e.g., 'louvain', 'leiden') or a collection of methods. Defaults to "louvain".
+            clustering (str, optional): Clustering method to use ('greedy', 'labelprop', 'leiden', 'louvain', 'markov', 'spinglass', 'walktrap').
+                Defaults to "louvain".
+            fraction_shortest_edges (float, optional): Fraction of shortest edges to consider for creating subgraphs. Defaults to 0.5.
             louvain_resolution (float, optional): Resolution parameter for Louvain clustering. Defaults to 0.1.
             leiden_resolution (float, optional): Resolution parameter for Leiden clustering. Defaults to 1.0.
-            fraction_shortest_edges (Union[float, List, Tuple, np.ndarray], optional): Fraction of shortest edges to consider for creating subgraphs.
-                Can be a single value or a collection of thresholds for flexibility. Defaults to 0.5.
             random_seed (int, optional): Seed for random number generation to ensure reproducibility. Defaults to 888.
 
         Returns:
@@ -53,10 +52,7 @@ class ClusterAPI:
             "louvain": f"louvain (resolution={louvain_resolution})",
             "leiden": f"leiden (resolution={leiden_resolution})",
         }
-        if isinstance(clustering, (list, tuple, np.ndarray)):
-            clustering_display = [clustering_log.get(c, c) for c in clustering]
-        else:
-            clustering_display = clustering_log.get(clustering, clustering)
+        clustering_display = clustering_log.get(clustering, clustering)
         logger.debug(f"Clustering: '{clustering_display}'")
         logger.debug(f"Edge length threshold: {fraction_shortest_edges}")
         logger.debug(f"Random seed: {random_seed}")

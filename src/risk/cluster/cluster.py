@@ -30,95 +30,78 @@ warnings.filterwarnings(action="ignore", category=DataConversionWarning)
 
 def get_network_clusters(
     network: nx.Graph,
-    clustering: Union[str, List, Tuple, np.ndarray] = "louvain",
-    fraction_shortest_edges: Union[float, List, Tuple, np.ndarray] = 1.0,
+    clustering: str = "louvain",
+    fraction_shortest_edges: float = 0.5,
     louvain_resolution: float = 0.1,
     leiden_resolution: float = 1.0,
     random_seed: int = 888,
 ) -> csr_matrix:
     """
-    Calculate the clusters for each node using sparse matrices.
+    Calculate clusters for the network using a single method.
 
     Args:
         network (nx.Graph): The network graph.
-        clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use.
-        fraction_shortest_edges (float, List, Tuple, or np.ndarray, optional): Shortest edge rank fraction thresholds.
-        louvain_resolution (float, optional): Resolution parameter for the Louvain method.
-        leiden_resolution (float, optional): Resolution parameter for the Leiden method.
-        random_seed (int, optional): Random seed for methods requiring random initialization.
+        clustering (str, optional): The clustering method ('greedy', 'labelprop', 'leiden', 'louvain', 'markov', 'spinglass', 'walktrap').
+        fraction_shortest_edges (float, optional): Fraction of shortest edges to consider for creating subgraphs. Defaults to 0.5.
+        louvain_resolution (float, optional): Resolution for Louvain.
+        leiden_resolution (float, optional): Resolution for Leiden.
+        random_seed (int, optional): Random seed.
 
     Returns:
-        csr_matrix: The cluster matrix.
+        csr_matrix: Sparse cluster matrix.
 
     Raises:
-        ValueError: If the number of clustering methods does not match the number of edge length thresholds.
+        ValueError: If invalid clustering method is provided.
     """
-    # Set random seed for reproducibility
+    # Set random seed for cluster reproducibility
     random.seed(random_seed)
     np.random.seed(random_seed)
 
-    # Ensure clustering is a list for multi-algorithm handling
-    if isinstance(clustering, (str, np.ndarray)):
-        clustering = [clustering]
-    # Ensure fraction_shortest_edges is a list for multi-threshold handling
-    if isinstance(fraction_shortest_edges, (float, int)):
-        fraction_shortest_edges = [fraction_shortest_edges] * len(clustering)
-    # Validate matching lengths of clustering methods and edge length thresholds
-    if len(clustering) != len(fraction_shortest_edges):
+    clusters = None
+    # Determine clustering method and compute clusters
+    if clustering == "greedy":
+        clusters = calculate_greedy_modularity_clusters(
+            network, fraction_shortest_edges=fraction_shortest_edges
+        )
+    elif clustering == "labelprop":
+        clusters = calculate_label_propagation_clusters(
+            network, fraction_shortest_edges=fraction_shortest_edges
+        )
+    elif clustering == "leiden":
+        clusters = calculate_leiden_clusters(
+            network,
+            resolution=leiden_resolution,
+            fraction_shortest_edges=fraction_shortest_edges,
+            random_seed=random_seed,
+        )
+    elif clustering == "louvain":
+        clusters = calculate_louvain_clusters(
+            network,
+            resolution=louvain_resolution,
+            fraction_shortest_edges=fraction_shortest_edges,
+            random_seed=random_seed,
+        )
+    elif clustering == "markov":
+        clusters = calculate_markov_clustering_clusters(
+            network, fraction_shortest_edges=fraction_shortest_edges
+        )
+    elif clustering == "spinglass":
+        clusters = calculate_spinglass_clusters(
+            network, fraction_shortest_edges=fraction_shortest_edges
+        )
+    elif clustering == "walktrap":
+        clusters = calculate_walktrap_clusters(
+            network, fraction_shortest_edges=fraction_shortest_edges
+        )
+    else:
         raise ValueError(
-            "The number of clustering methods must match the number of edge length thresholds."
+            "Invalid clustering method. Choose from: 'greedy', 'labelprop', 'leiden', 'louvain', 'markov', 'spinglass', 'walktrap'."
         )
 
-    # Initialize a sparse LIL matrix for incremental updates
-    num_nodes = network.number_of_nodes()
-    # Initialize a sparse matrix with the same shape as the network
-    combined_clusters = csr_matrix((num_nodes, num_nodes), dtype=np.uint8)
-    # Loop through each clustering method and corresponding edge rank fraction
-    for metric, percentile in zip(clustering, fraction_shortest_edges):
-        # Compute clusters for the specified metric
-        if metric == "greedy":
-            clusters = calculate_greedy_modularity_clusters(
-                network, fraction_shortest_edges=percentile
-            )
-        elif metric == "labelprop":
-            clusters = calculate_label_propagation_clusters(
-                network, fraction_shortest_edges=percentile
-            )
-        elif metric == "leiden":
-            clusters = calculate_leiden_clusters(
-                network,
-                resolution=leiden_resolution,
-                fraction_shortest_edges=percentile,
-                random_seed=random_seed,
-            )
-        elif metric == "louvain":
-            clusters = calculate_louvain_clusters(
-                network,
-                resolution=louvain_resolution,
-                fraction_shortest_edges=percentile,
-                random_seed=random_seed,
-            )
-        elif metric == "markov":
-            clusters = calculate_markov_clustering_clusters(
-                network, fraction_shortest_edges=percentile
-            )
-        elif metric == "spinglass":
-            clusters = calculate_spinglass_clusters(network, fraction_shortest_edges=percentile)
-        elif metric == "walktrap":
-            clusters = calculate_walktrap_clusters(network, fraction_shortest_edges=percentile)
-        else:
-            raise ValueError(
-                "Invalid clustering method. Choose from: 'greedy', 'labelprop',"
-                " 'leiden', 'louvain', 'markov', 'spinglass', 'walktrap'."
-            )
+    # Ensure maximum per row set to 1
+    clusters = _set_max_row_value_to_one_sparse(clusters)
 
-        # Add the sparse cluster matrix
-        combined_clusters += clusters
-
-    # Ensure maximum value in each row is set to 1
-    combined_clusters = _set_max_row_value_to_one_sparse(combined_clusters)
-
-    return combined_clusters
+    return clusters
 
 
 def _set_max_row_value_to_one_sparse(matrix: csr_matrix) -> csr_matrix:
