@@ -4,6 +4,7 @@ tests/test_load_plotter
 """
 
 import matplotlib
+import numpy as np
 import matplotlib.pyplot as plt
 import pytest
 
@@ -1513,3 +1514,103 @@ def test_plotter_show(risk_obj, graph, monkeypatch):
         plotter.show()  # Just call it — no assertion needed
     finally:
         plt.close("all")
+
+
+def test_plot_subnetwork_raises_for_missing_nodes(risk_obj, graph):
+    """
+    Test that plot_subnetwork raises a ValueError when no provided nodes exist.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which the subnetwork would be plotted.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    with pytest.raises(ValueError):
+        plotter.plot_subnetwork(nodes=["__MISSING_NODE__"])  # no valid nodes
+    plt.close("all")
+
+
+def test_plot_subcontour_raises_for_single_node(risk_obj, graph):
+    """
+    Test that plot_subcontour raises a ValueError when provided a single valid node.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which the contour would be plotted.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    # Choose a known node label from the dataset.
+    with pytest.raises(ValueError):
+        plotter.plot_subcontour(nodes=["LSM1"])  # insufficient nodes
+    plt.close("all")
+
+
+def test_plot_sublabel_raises_for_single_node(risk_obj, graph):
+    """
+    Test that plot_sublabel raises a ValueError when provided a single valid node.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which the label would be plotted.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    with pytest.raises(ValueError):
+        plotter.plot_sublabel(nodes=["LSM1"], label="Single Node")  # insufficient nodes
+    plt.close("all")
+
+
+def test_get_annotated_node_sizes_shape_and_values(risk_obj, graph):
+    """
+    Test get_annotated_node_sizes returns the correct shape and only the specified sizes.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object whose node sizes are computed.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    sizes = plotter.get_annotated_node_sizes(significant_size=123, nonsignificant_size=45)
+    assert isinstance(sizes, np.ndarray)
+    assert sizes.shape[0] == len(graph.network.nodes)
+    unique_vals = set(np.unique(sizes).tolist())
+    assert unique_vals.issubset({123, 45})
+    plt.close("all")
+
+
+def test_get_annotated_node_colors_shape(risk_obj, graph):
+    """
+    Test get_annotated_node_colors returns an RGBA array for each node.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object whose node colors are computed.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    colors = plotter.get_annotated_node_colors(alpha=0.8)
+    assert isinstance(colors, np.ndarray)
+    assert colors.shape == (len(graph.network.nodes), 4)
+    assert np.all(colors >= 0.0) and np.all(colors <= 1.0)
+    plt.close("all")
+
+
+def test_get_annotated_label_and_contour_colors_length(risk_obj, graph):
+    """
+    Test get_annotated_label_colors and get_annotated_contour_colors return one RGBA color per domain.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object whose domain colors are computed.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    num_domains = len(graph.domain_id_to_node_ids_map)
+
+    label_colors = plotter.get_annotated_label_colors()
+    contour_colors = plotter.get_annotated_contour_colors()
+
+    assert isinstance(label_colors, (list, tuple))
+    assert isinstance(contour_colors, (list, tuple))
+    assert len(label_colors) == num_domains
+    assert len(contour_colors) == num_domains
+    # Ensure RGBA-like structure
+    assert all(len(c) == 4 for c in label_colors)
+    assert all(len(c) == 4 for c in contour_colors)
+    plt.close("all")
