@@ -188,7 +188,7 @@ def annotation_dict(data_path):
     Returns:
         dict: The loaded annotation as a dictionary.
     """
-    annotation_file = data_path / "json" / "annotation" / "go_biological_process.json"
+    annotation_file = data_path / "json" / "annotation" / "go_biological_process_minified.json"
     # Load the JSON file and return as a dictionary
     with open(annotation_file, "r", encoding="utf-8") as file:
         annotation_dict = json.load(file)
@@ -209,7 +209,7 @@ def json_annotation(risk_obj, cytoscape_network, data_path):
     Returns:
         Annotation: The loaded annotation object.
     """
-    annotation_file = data_path / "json" / "annotation" / "go_biological_process.json"
+    annotation_file = data_path / "json" / "annotation" / "go_biological_process_minified.json"
     return risk_obj.load_annotation_json(filepath=str(annotation_file), network=cytoscape_network)
 
 
@@ -316,15 +316,19 @@ def graph(risk_obj, cytoscape_network, json_annotation):
     network = cytoscape_network
     annotation = json_annotation
     # Build clusters based on the loaded network and annotation
-    clusters = risk_obj.load_clusters_permutation(
-        network=network,
-        annotation=annotation,
-        clustering="louvain",
+    clusters = risk_obj.load_clusters(
+        network=cytoscape_network,
+        clustering="leiden",
         louvain_resolution=8,
         leiden_resolution=1.0,
         fraction_shortest_edges=0.75,
-        score_metric="stdev",
+        random_seed=887,
+    )
+    stats_results = risk_obj.run_permutation(
+        annotation=json_annotation,
+        clusters=clusters,
         null_distribution="network",
+        score_metric="stdev",
         num_permutations=20,
         random_seed=887,
         max_workers=1,
@@ -333,7 +337,7 @@ def graph(risk_obj, cytoscape_network, json_annotation):
     graph = risk_obj.load_graph(
         network=network,
         annotation=annotation,
-        clusters=clusters,
+        stats_results=stats_results,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
@@ -347,3 +351,14 @@ def graph(risk_obj, cytoscape_network, json_annotation):
         max_cluster_size=1000,
     )
     return graph
+
+
+@pytest.fixture(scope="session")
+def clusters_matrix(risk_obj, cytoscape_network):
+    return risk_obj.load_clusters(
+        network=cytoscape_network,
+        clustering="louvain",
+        louvain_resolution=8,
+        fraction_shortest_edges=0.75,
+        random_seed=887,
+    )

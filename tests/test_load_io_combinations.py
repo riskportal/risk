@@ -39,40 +39,45 @@ def test_load_graphs(request, risk_obj, network_fixture, annotation_fixture):
     network = request.getfixturevalue(network_fixture)
     # Load the annotation using the specified fixture
     annotation = request.getfixturevalue(annotation_fixture)
-    clusters = risk_obj.load_clusters_permutation(
+    # Cluster the network using the Leiden algorithm
+    clusters = risk_obj.load_clusters(
         network=network,
-        annotation=annotation,
-        clustering="louvain",
+        clustering="leiden",
         louvain_resolution=8,
         leiden_resolution=1.0,
         fraction_shortest_edges=0.75,
-        score_metric="stdev",
+        random_seed=887,
+    )
+    stats_results = risk_obj.run_permutation(
+        annotation=annotation,
+        clusters=clusters,
         null_distribution="network",
+        score_metric="stdev",
         num_permutations=20,
         random_seed=887,
         max_workers=1,
     )
 
     # Validate clusters structure
-    assert "depletion_pvals" in clusters, "Clusters should contain a 'depletion_pvals' key"
-    assert "enrichment_pvals" in clusters, "Clusters should contain an 'enrichment_pvals' key"
+    assert "depletion_pvals" in stats_results, "Clusters should contain a 'depletion_pvals' key"
+    assert "enrichment_pvals" in stats_results, "Clusters should contain an 'enrichment_pvals' key"
     assert isinstance(
-        clusters["depletion_pvals"], np.ndarray
+        stats_results["depletion_pvals"], np.ndarray
     ), "'depletion_pvals' should be a numpy array"
     assert isinstance(
-        clusters["enrichment_pvals"], np.ndarray
+        stats_results["enrichment_pvals"], np.ndarray
     ), "'enrichment_pvals' should be a numpy array"
     assert (
-        clusters["depletion_pvals"].shape == clusters["enrichment_pvals"].shape
+        stats_results["depletion_pvals"].shape == stats_results["enrichment_pvals"].shape
     ), "'depletion_pvals' and 'enrichment_pvals' should have the same shape"
     # Ensure that the p-value matrices are not empty
-    assert clusters["depletion_pvals"].size > 0, "'depletion_pvals' array is empty"
-    assert clusters["enrichment_pvals"].size > 0, "'enrichment_pvals' array is empty"
+    assert stats_results["depletion_pvals"].size > 0, "'depletion_pvals' array is empty"
+    assert stats_results["enrichment_pvals"].size > 0, "'enrichment_pvals' array is empty"
 
     graph = risk_obj.load_graph(
         network=network,
         annotation=annotation,
-        clusters=clusters,
+        stats_results=stats_results,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
