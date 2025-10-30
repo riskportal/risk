@@ -303,20 +303,16 @@ def test_run_permutation_with_different_clusters(risk_obj, json_annotation, cyto
         cytoscape_network: The network object loaded from Cytoscape.
     """
     # Louvain clustering
-    clusters_louvain = risk_obj.load_clusters(
+    clusters_louvain = risk_obj.cluster_louvain(
         network=cytoscape_network,
-        clustering="louvain",
-        louvain_resolution=4,
         fraction_shortest_edges=0.7,
+        resolution=4,
         random_seed=887,
     )
     # Greedy clustering
-    clusters_greedy = risk_obj.load_clusters(
+    clusters_greedy = risk_obj.cluster_greedy(
         network=cytoscape_network,
-        clustering="greedy",
-        greedy_resolution=1,
         fraction_shortest_edges=0.5,
-        random_seed=888,
     )
     # Run permutation tests
     results_louvain = risk_obj.run_permutation(

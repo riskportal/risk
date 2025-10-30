@@ -8,6 +8,32 @@ import pytest
 import numpy as np
 
 
+CLUSTER_METHOD_DEFAULTS = {
+    "louvain": {"resolution": 0.1, "random_seed": 887},
+    "leiden": {"resolution": 1.0, "random_seed": 887},
+}
+
+
+def _run_cluster_method(
+    risk_obj,
+    clustering: str,
+    network: nx.Graph,
+    fraction_shortest_edges: float,
+    **overrides,
+):
+    """
+    Helper to invoke an explicit clustering method on the RISK API.
+    """
+    kwargs = CLUSTER_METHOD_DEFAULTS.get(clustering, {}).copy()
+    kwargs.update(overrides)
+    cluster_fn = getattr(risk_obj, f"cluster_{clustering}")
+    return cluster_fn(
+        network=network,
+        fraction_shortest_edges=fraction_shortest_edges,
+        **kwargs,
+    )
+
+
 @pytest.mark.parametrize(
     "clustering, fraction_shortest_edges",
     [
@@ -31,11 +57,11 @@ def test_basic_cluster_loading(risk_obj, cytoscape_network, clustering, fraction
         clustering: The clustering method(s) to be used.
         fraction_shortest_edges: The fraction(s) of shortest edges to consider.
     """
-    clusters = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering=clustering,
-        fraction_shortest_edges=fraction_shortest_edges,
-        random_seed=887,
+    clusters = _run_cluster_method(
+        risk_obj,
+        clustering,
+        cytoscape_network,
+        fraction_shortest_edges,
     )
 
     assert clusters is not None
@@ -56,11 +82,11 @@ def test_load_clusters_empty_network(risk_obj):
         ValueError,
         match="No edge lengths found in the graph. Ensure edges have 'length' attributes.",
     ):
-        risk_obj.load_clusters(
-            network=empty_network,
-            clustering="louvain",
-            fraction_shortest_edges=0.75,
-            random_seed=887,
+        _run_cluster_method(
+            risk_obj,
+            "louvain",
+            empty_network,
+            0.75,
         )
 
 
@@ -88,11 +114,11 @@ def test_load_clusters_output_dimensions(
         clustering: The clustering method to be used.
         fraction_shortest_edges: The fraction of shortest edges to consider.
     """
-    clusters = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering=clustering,
-        fraction_shortest_edges=fraction_shortest_edges,
-        random_seed=887,
+    clusters = _run_cluster_method(
+        risk_obj,
+        clustering,
+        cytoscape_network,
+        fraction_shortest_edges,
     )
 
     num_nodes = len(cytoscape_network.nodes)
@@ -108,16 +134,18 @@ def test_load_clusters_deterministic_output(risk_obj, cytoscape_network):
         risk_obj: The RISK object instance used for loading clusters.
         cytoscape_network: The network object to be used for cluster generation.
     """
-    clusters_1 = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering="louvain",
-        fraction_shortest_edges=0.75,
+    clusters_1 = _run_cluster_method(
+        risk_obj,
+        "louvain",
+        cytoscape_network,
+        0.75,
         random_seed=887,
     )
-    clusters_2 = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering="louvain",
-        fraction_shortest_edges=0.75,
+    clusters_2 = _run_cluster_method(
+        risk_obj,
+        "louvain",
+        cytoscape_network,
+        0.75,
         random_seed=887,
     )
 
@@ -126,22 +154,26 @@ def test_load_clusters_deterministic_output(risk_obj, cytoscape_network):
 
 
 @pytest.mark.parametrize(
-    "clustering, fraction_shortest_edges, min_resolution, max_resolution",
+    "clustering, fraction_shortest_edges, resolutions",
     [
-        ("greedy", 0.25, 0.05, 0.5),
-        ("greedy", 1.0, 0.5, 2.0),
-        ("louvain", 0.5, 0.05, 1.0),
-        ("louvain", 0.9, 0.5, 2.5),
-        ("leiden", 0.25, 0.1, 0.25),
-        ("leiden", 0.75, 0.5, 1.5),
-        ("labelprop", 0.5, 0.1, 1.0),
-        ("markov", 0.3, 0.1, 1.0),
-        ("walktrap", 0.6, 0.1, 1.0),
-        ("spinglass", 0.7, 0.1, 1.0),
+        ("greedy", 0.25, (None,)),
+        ("greedy", 1.0, (None,)),
+        ("louvain", 0.5, (0.05, 1.0)),
+        ("louvain", 0.9, (0.5, 2.5)),
+        ("leiden", 0.25, (0.1, 0.25)),
+        ("leiden", 0.75, (0.5, 1.5)),
+        ("labelprop", 0.5, (None,)),
+        ("markov", 0.3, (None,)),
+        ("walktrap", 0.6, (None,)),
+        ("spinglass", 0.7, (None,)),
     ],
 )
 def test_cluster_param_space(
-    risk_obj, cytoscape_network, clustering, fraction_shortest_edges, min_resolution, max_resolution
+    risk_obj,
+    cytoscape_network,
+    clustering,
+    fraction_shortest_edges,
+    resolutions,
 ):
     """
     Test cluster loading across a wide parameter space of clustering algorithms, edge fractions,
@@ -152,21 +184,23 @@ def test_cluster_param_space(
         cytoscape_network: The network object to be used for cluster generation.
         clustering: The clustering method to be used.
         fraction_shortest_edges: The fraction of shortest edges to consider.
-        min_resolution: The minimum resolution parameter for clustering (if applicable).
-        max_resolution: The maximum resolution parameter for clustering (if applicable).
+        resolutions: The resolution values to exercise for the clustering method (use (None,) if not applicable).
     """
-    clusters = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering=clustering,
-        fraction_shortest_edges=fraction_shortest_edges,
-        min_resolution=min_resolution,
-        max_resolution=max_resolution,
-        random_seed=887,
-    )
+    for resolution in resolutions:
+        overrides = {}
+        if resolution is not None:
+            overrides["resolution"] = resolution
+        clusters = _run_cluster_method(
+            risk_obj,
+            clustering,
+            cytoscape_network,
+            fraction_shortest_edges,
+            **overrides,
+        )
 
-    assert clusters is not None
-    assert clusters.shape[0] == clusters.shape[1]  # Ensure square matrix
-    assert clusters.getnnz() > 0  # Ensure clusters contain some entries
+        assert clusters is not None
+        assert clusters.shape[0] == clusters.shape[1]  # Ensure square matrix
+        assert clusters.getnnz() > 0  # Ensure clusters contain some entries
 
 
 # Additional tests for cluster loading
@@ -184,10 +218,11 @@ def test_disconnected_graph_clustering(risk_obj):
     G.add_edge("A", "B", length=1.0)
     G.add_edge("C", "D", length=1.0)
     # Expect that clusters are assigned per component (no cross-component clusters)
-    clusters = risk_obj.load_clusters(
-        network=G,
-        clustering="louvain",
-        fraction_shortest_edges=1.0,
+    clusters = _run_cluster_method(
+        risk_obj,
+        "louvain",
+        G,
+        1.0,
         random_seed=887,
     )
     arr = clusters.toarray()
@@ -208,16 +243,18 @@ def test_different_methods_produce_different_results(risk_obj, cytoscape_network
         risk_obj: The RISK object instance used for loading clusters.
         cytoscape_network: The network object to be used for cluster generation.
     """
-    clusters_louvain = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering="louvain",
-        fraction_shortest_edges=0.75,
+    clusters_louvain = _run_cluster_method(
+        risk_obj,
+        "louvain",
+        cytoscape_network,
+        0.75,
         random_seed=887,
     )
-    clusters_leiden = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering="leiden",
-        fraction_shortest_edges=0.75,
+    clusters_leiden = _run_cluster_method(
+        risk_obj,
+        "leiden",
+        cytoscape_network,
+        0.75,
         random_seed=887,
     )
     # They should not be exactly equal (though not impossible)
@@ -233,10 +270,11 @@ def test_cluster_matrix_symmetry(risk_obj, cytoscape_network):
         risk_obj: The RISK object instance used for loading clusters.
         cytoscape_network: The network object to be used for cluster generation.
     """
-    clusters = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering="louvain",
-        fraction_shortest_edges=0.75,
+    clusters = _run_cluster_method(
+        risk_obj,
+        "louvain",
+        cytoscape_network,
+        0.75,
         random_seed=887,
     )
     arr = clusters.toarray()
@@ -251,16 +289,18 @@ def test_fraction_shortest_edges_sensitivity(risk_obj, cytoscape_network):
         risk_obj: The RISK object instance used for loading clusters.
         cytoscape_network: The network object to be used for cluster generation.
     """
-    clusters_low = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering="louvain",
-        fraction_shortest_edges=0.5,
+    clusters_low = _run_cluster_method(
+        risk_obj,
+        "louvain",
+        cytoscape_network,
+        0.5,
         random_seed=887,
     )
-    clusters_high = risk_obj.load_clusters(
-        network=cytoscape_network,
-        clustering="louvain",
-        fraction_shortest_edges=0.95,
+    clusters_high = _run_cluster_method(
+        risk_obj,
+        "louvain",
+        cytoscape_network,
+        0.95,
         random_seed=887,
     )
     # They should not be exactly equal (though not impossible)

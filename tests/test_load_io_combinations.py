@@ -40,12 +40,10 @@ def test_load_graphs(request, risk_obj, network_fixture, annotation_fixture):
     # Load the annotation using the specified fixture
     annotation = request.getfixturevalue(annotation_fixture)
     # Cluster the network using the Leiden algorithm
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_leiden(
         network=network,
-        clustering="leiden",
-        louvain_resolution=8,
-        leiden_resolution=1.0,
         fraction_shortest_edges=0.75,
+        resolution=1.0,
         random_seed=887,
     )
     stats_results = risk_obj.run_permutation(

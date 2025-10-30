@@ -21,12 +21,10 @@ def test_load_graph_with_json_annotation(risk_obj, cytoscape_network, json_annot
         json_annotation: The JSON annotation associated with the network.
     """
     # === Cluster and Stats ===
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_leiden(
         network=cytoscape_network,
-        clustering="leiden",
-        louvain_resolution=8,
-        leiden_resolution=1.0,
         fraction_shortest_edges=0.75,
+        resolution=1.0,
         random_seed=887,
     )
     stats_results = risk_obj.run_permutation(
@@ -73,11 +71,10 @@ def test_cluster_size_limits_with_json_annotation(risk_obj, cytoscape_network, j
     cluster_size_combinations = [(5, 1000), (10, 500), (20, 300), (50, 200)]
     for min_cluster_size, max_cluster_size in cluster_size_combinations:
         # === Cluster and Stats ===
-        clusters = risk_obj.load_clusters(
+        clusters = risk_obj.cluster_louvain(
             network=cytoscape_network,
-            clustering="louvain",
-            louvain_resolution=8,
             fraction_shortest_edges=0.75,
+            resolution=8,
             random_seed=887,
         )
         stats_results = risk_obj.run_permutation(
@@ -123,11 +120,10 @@ def test_load_graph_with_dict_annotation(risk_obj, cytoscape_network, dict_annot
         dict_annotation: The dictionary annotation associated with the network.
     """
     # === Cluster and Stats ===
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_louvain(
         network=cytoscape_network,
-        clustering="louvain",
-        louvain_resolution=8,
         fraction_shortest_edges=0.75,
+        resolution=8,
         random_seed=887,
     )
     stats_results = risk_obj.run_permutation(
@@ -174,11 +170,10 @@ def test_cluster_size_limits_with_dict_annotation(risk_obj, cytoscape_network, d
     cluster_size_combinations = [(5, 1000), (10, 500), (20, 300), (50, 200)]
     for min_cluster_size, max_cluster_size in cluster_size_combinations:
         # === Cluster and Stats ===
-        clusters = risk_obj.load_clusters(
+        clusters = risk_obj.cluster_louvain(
             network=cytoscape_network,
-            clustering="louvain",
-            louvain_resolution=8,
             fraction_shortest_edges=0.75,
+            resolution=8,
             random_seed=887,
         )
         stats_results = risk_obj.run_permutation(
@@ -224,11 +219,10 @@ def test_load_graph_with_different_stats_results(risk_obj, cytoscape_network, js
         json_annotation: The JSON annotation associated with the network.
     """
     # Load clusters first, then compute statistics separately
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_louvain(
         network=cytoscape_network,
-        clustering="louvain",
-        louvain_resolution=8,
         fraction_shortest_edges=0.75,
+        resolution=8,
         random_seed=887,
     )
     # Compute statistical results using different methods
@@ -307,11 +301,10 @@ def test_graph_consistency_across_stat_methods(risk_obj, cytoscape_network, json
         cytoscape_network: The network object to be used for cluster and graph generation.
         json_annotation: The JSON annotation associated with the network.
     """
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_louvain(
         network=cytoscape_network,
-        clustering="louvain",
-        louvain_resolution=8,
         fraction_shortest_edges=0.75,
+        resolution=8,
         random_seed=887,
     )
     stats_perm = risk_obj.run_permutation(
@@ -376,11 +369,10 @@ def test_linkage_criterion_and_auto_clustering_options(
     min_cluster_size, max_cluster_size = 10, 200  # Fixed for simplicity
     for criterion in test_criteria:
         # === Cluster and Stats ===
-        clusters = risk_obj.load_clusters(
+        clusters = risk_obj.cluster_louvain(
             network=cytoscape_network,
-            clustering="louvain",
-            louvain_resolution=1.0,
             fraction_shortest_edges=0.75,
+            resolution=1.0,
             random_seed=888,
         )
         stats_results = risk_obj.run_binom(
@@ -422,11 +414,10 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
         json_annotation: The JSON annotation associated with the network.
     """
     # === Cluster and Stats ===
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_leiden(
         network=cytoscape_network,
-        clustering="leiden",
-        louvain_resolution=8,
         fraction_shortest_edges=0.75,
+        resolution=1.0,
         random_seed=887,
     )
     stats_results = risk_obj.run_permutation(
@@ -565,11 +556,10 @@ def test_invalid_clustering_args_raise(risk_obj, cytoscape_network, json_annotat
         bad_kwargs: A dict containing an intentionally invalid clustering parameter.
     """
     # === Cluster and Stats ===
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_louvain(
         network=cytoscape_network,
-        clustering="louvain",
-        louvain_resolution=1.0,
         fraction_shortest_edges=0.75,
+        resolution=1.0,
         random_seed=888,
     )
     stats_results = risk_obj.run_binom(
@@ -607,11 +597,10 @@ def test_off_criterion_bypasses_invalid_options(risk_obj, cytoscape_network, jso
         json_annotation: The JSON annotation associated with the network.
     """
     # === Cluster and Stats ===
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_louvain(
         network=cytoscape_network,
-        clustering="louvain",
-        louvain_resolution=1.0,
         fraction_shortest_edges=0.75,
+        resolution=1.0,
         random_seed=888,
     )
     stats_results = risk_obj.run_binom(
@@ -649,11 +638,10 @@ def test_load_graph_returns_graph_instance(risk_obj, cytoscape_network, json_ann
         cytoscape_network: The network object to be used for cluster and graph generation.
         json_annotation: The JSON annotation associated with the network.
     """
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_louvain(
         network=cytoscape_network,
-        clustering="louvain",
-        louvain_resolution=1.0,
         fraction_shortest_edges=0.75,
+        resolution=1.0,
         random_seed=42,
     )
     stats_results = risk_obj.run_binom(

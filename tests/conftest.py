@@ -316,12 +316,10 @@ def graph(risk_obj, cytoscape_network, json_annotation):
     network = cytoscape_network
     annotation = json_annotation
     # Build clusters based on the loaded network and annotation
-    clusters = risk_obj.load_clusters(
+    clusters = risk_obj.cluster_leiden(
         network=cytoscape_network,
-        clustering="leiden",
-        louvain_resolution=8,
-        leiden_resolution=1.0,
         fraction_shortest_edges=0.75,
+        resolution=1.0,
         random_seed=887,
     )
     stats_results = risk_obj.run_permutation(
@@ -355,10 +353,9 @@ def graph(risk_obj, cytoscape_network, json_annotation):
 
 @pytest.fixture(scope="session")
 def clusters_matrix(risk_obj, cytoscape_network):
-    return risk_obj.load_clusters(
+    return risk_obj.cluster_louvain(
         network=cytoscape_network,
-        clustering="louvain",
-        louvain_resolution=8,
         fraction_shortest_edges=0.75,
+        resolution=8,
         random_seed=887,
     )
