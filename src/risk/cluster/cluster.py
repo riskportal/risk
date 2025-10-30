@@ -28,6 +28,35 @@ from ._community import (
 warnings.filterwarnings(action="ignore", category=DataConversionWarning)
 
 
+def cluster_method(func):
+    """
+    Decorator for clustering functions to ensure deterministic, reproducible results.
+    Sets random seeds, copies the network, and ensures output is normalized.
+
+    Args:
+        func (callable): The clustering function to be decorated.
+
+    Returns:
+        callable: The wrapped clustering function with added functionality.
+    """
+
+    def wrapper(*args, **kwargs):
+        """
+        Wrapper function to set random seeds and normalize output.
+
+        Args:
+            *args: Positional arguments for the clustering function.
+            **kwargs: Keyword arguments for the clustering function.
+
+        Returns:
+            csr_matrix: Sparse matrix representing cluster assignments.
+        """
+        clusters = func(*args, **kwargs)
+        return _set_max_row_value_to_one_sparse(clusters)
+
+    return wrapper
+
+
 def get_network_clusters(
     network: nx.Graph,
     clustering: str = "louvain",
