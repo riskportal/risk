@@ -123,7 +123,7 @@ class Plotter(Canvas, Network, Contour, Labels):
         Args:
             *args: Positional arguments passed to `plt.savefig`.
             pad_inches (float, optional): Padding around the figure when saving. Defaults to 0.5.
-            dpi (int, optional): Dots per inch (DPI) for the exported image. Defaults to 300.
+            dpi (int, optional): Dots per inch (DPI) for the exported image. Defaults to 100.
             **kwargs: Keyword arguments passed to `plt.savefig`, such as filename and format.
         """
         # Ensure user-provided kwargs take precedence

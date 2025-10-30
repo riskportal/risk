@@ -36,6 +36,7 @@ class Params:
         self.network = {}
         self.annotation = {}
         self.clusters = {}
+        self.stats = {}
         self.graph = {}
         self.plotter = {}
 
@@ -65,6 +66,15 @@ class Params:
             **kwargs: Cluster parameters to log.
         """
         self.clusters = {**self.clusters, **kwargs}
+
+    def log_stats(self, **kwargs) -> None:
+        """
+        Log statistical test-related parameters.
+
+        Args:
+            **kwargs: Statistical test parameters to log.
+        """
+        self.stats = {**self.stats, **kwargs}
 
     def log_graph(self, **kwargs) -> None:
         """

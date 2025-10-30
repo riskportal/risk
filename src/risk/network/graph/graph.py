@@ -27,7 +27,7 @@ class Graph:
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        cluster_results: Dict[str, Any],
+        stats_results: Dict[str, Any],
         domains: pd.DataFrame,
         trimmed_domains: pd.DataFrame,
         node_label_to_node_id_map: Dict[str, Any],
@@ -40,7 +40,7 @@ class Graph:
         Args:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            cluster_results (Dict[str, Any]): Cluster significance data.
+            stats_results (Dict[str, Any]): Cluster significance data.
             domains (pd.DataFrame): DataFrame containing domain data for the network nodes.
             trimmed_domains (pd.DataFrame): DataFrame containing trimmed domain data for the network nodes.
             node_label_to_node_id_map (Dict[str, Any]): A dictionary mapping node labels to their corresponding IDs.
@@ -72,7 +72,7 @@ class Graph:
         self.node_coordinates = self._extract_node_coordinates(self.network)
 
         # NOTE: Only after the above attributes are initialized, we can create the summary
-        self.summary = Summary(annotation, cluster_results, self)
+        self.summary = Summary(annotation, stats_results, self)
 
     def pop(self, domain_id: int) -> List[str]:
         """

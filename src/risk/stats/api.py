@@ -28,18 +28,15 @@ class StatsAPI:
         annotation: Dict[str, Any],
         clusters: csr_matrix,
         null_distribution: str = "network",
-        random_seed: int = 888,
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Load significant clusters for the network using the binomial test.
+        Compute cluster significance using the binomial test.
 
         Args:
-            network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
-                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
-                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
+            clusters (csr_matrix): The cluster assignments for the network.
+            null_distribution (str, optional): Type of null distribution ('network' or 'annotation').
 
         Returns:
             Dict[str, Any]: The computed significance of clusters based on the specified statistical test.
@@ -50,7 +47,6 @@ class StatsAPI:
             annotation=annotation,
             clusters=clusters,
             null_distribution=null_distribution,
-            random_seed=random_seed,
             statistical_test_key="binom",
             statistical_test_function=compute_binom_test,
             **kwargs,
@@ -61,17 +57,15 @@ class StatsAPI:
         annotation: Dict[str, Any],
         clusters: csr_matrix,
         null_distribution: str = "network",
-        random_seed: int = 888,
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Load significant clusters for the network using the chi-squared test.
+        Compute cluster significance using the chi-squared test.
 
         Args:
             annotation (Dict[str, Any]): The annotation associated with the network.
             clusters (csr_matrix): The cluster assignments for the network.
             null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
-            random_seed (int, optional): Seed for random number generation. Defaults to 888.
 
         Returns:
             Dict[str, Any]: The computed significance of clusters based on the specified statistical test.
@@ -82,7 +76,6 @@ class StatsAPI:
             annotation=annotation,
             clusters=clusters,
             null_distribution=null_distribution,
-            random_seed=random_seed,
             statistical_test_key="chi2",
             statistical_test_function=compute_chi2_test,
             **kwargs,
@@ -93,18 +86,15 @@ class StatsAPI:
         annotation: Dict[str, Any],
         clusters: csr_matrix,
         null_distribution: str = "network",
-        random_seed: int = 888,
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Load significant clusters for the network using the hypergeometric test.
+        Compute cluster significance using the hypergeometric test.
 
         Args:
-            network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            clustering (str, List, Tuple, or np.ndarray, optional): The clustering method(s) to use. Can be a string for one
-                method or a list/tuple/ndarray of methods ('greedy', 'louvain', 'leiden', 'labelprop',
-                'markov', 'walktrap', 'spinglass'). Defaults to 'louvain'.
+            clusters (csr_matrix): The cluster matrix to use.
+            null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
 
         Returns:
             Dict[str, Any]: The computed significance of clusters based on the specified statistical test.
@@ -115,7 +105,6 @@ class StatsAPI:
             annotation=annotation,
             clusters=clusters,
             null_distribution=null_distribution,
-            random_seed=random_seed,
             statistical_test_key="hypergeom",
             statistical_test_function=compute_hypergeom_test,
             **kwargs,
@@ -133,10 +122,9 @@ class StatsAPI:
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Load significant clusters for the network using the permutation test.
+        Compute cluster significance using the permutation test.
 
         Args:
-            network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
             clusters (csr_matrix): The cluster matrix to use.
             score_metric (str, optional): Scoring metric for cluster significance. Defaults to "sum".
@@ -172,7 +160,6 @@ class StatsAPI:
         annotation: Dict[str, Any],
         clusters: csr_matrix,
         null_distribution: str = "network",
-        random_seed: int = 888,
         statistical_test_key: str = "hypergeom",
         statistical_test_function: Any = compute_hypergeom_test,
         **kwargs,
@@ -181,7 +168,7 @@ class StatsAPI:
         Run the specified statistical test to compute cluster significance.
 
         Args:
-            annotation (Dict[str, Any]): Annotation data associated with the network, including a "matrix" key with annotation values.
+            annotation (Dict[str, Any]): Annotation data associated with the network.
             clusters (csr_matrix): The cluster matrix to analyze.
             null_distribution (str, optional): The type of null distribution to use ('network' or 'annotation').
                 Defaults to "network".
@@ -199,10 +186,9 @@ class StatsAPI:
         # Log null distribution type
         logger.debug(f"Null distribution: '{null_distribution}'")
         # Log cluster analysis parameters
-        params.log_clusters(
+        params.log_stats(
             statistical_test_function=statistical_test_key,
             null_distribution=null_distribution,
-            random_seed=random_seed,
             **kwargs,
         )
         # Apply statistical test function to compute cluster significance

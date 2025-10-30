@@ -53,7 +53,11 @@ class ClusterAPI:
             "louvain": f"louvain (resolution={louvain_resolution})",
             "leiden": f"leiden (resolution={leiden_resolution})",
         }
-        logger.debug(f"Clustering: '{clustering_log.get(clustering, clustering)}'")
+        if isinstance(clustering, (list, tuple, np.ndarray)):
+            clustering_display = [clustering_log.get(c, c) for c in clustering]
+        else:
+            clustering_display = clustering_log.get(clustering, clustering)
+        logger.debug(f"Clustering: '{clustering_display}'")
         logger.debug(f"Edge length threshold: {fraction_shortest_edges}")
         logger.debug(f"Random seed: {random_seed}")
         # Log clustering parameters

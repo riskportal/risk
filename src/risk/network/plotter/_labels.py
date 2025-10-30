@@ -275,12 +275,12 @@ class Labels:
             fontsize (int, optional): Font size for the label. Defaults to 10.
             fontcolor (str, List, Tuple, or np.ndarray, optional): Color of the label text. Defaults to "black".
             fontalpha (float, None, optional): Transparency level for the font color. If provided, it overrides any existing alpha values found
-                in fontalpha. Defaults to 1.0.
+                in fontcolor. Defaults to 1.0.
             arrow_linewidth (float, optional): Line width of the arrow pointing to the centroid. Defaults to 1.
             arrow_style (str, optional): Style of the arrows pointing to the centroid. Defaults to "->".
             arrow_color (str, List, Tuple, or np.ndarray, optional): Color of the arrow. Defaults to "black".
             arrow_alpha (float, None, optional): Transparency level for the arrow color. If provided, it overrides any existing alpha values
-                found in arrow_alpha. Defaults to 1.0.
+                found in arrow_color. Defaults to 1.0.
             arrow_base_shrink (float, optional): Distance between the text and the base of the arrow. Defaults to 0.0.
             arrow_tip_shrink (float, optional): Distance between the arrow tip and the centroid. Defaults to 0.0.
 

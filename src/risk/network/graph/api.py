@@ -31,7 +31,7 @@ class GraphAPI:
         self,
         network: nx.Graph,
         annotation: Dict[str, Any],
-        cluster_results: Dict[str, Any],
+        stats_results: Dict[str, Any],
         tail: str = "right",
         pval_cutoff: float = 0.01,
         fdr_cutoff: float = 0.9999,
@@ -50,7 +50,7 @@ class GraphAPI:
         Args:
             network (nx.Graph): The network graph.
             annotation (Dict[str, Any]): The annotation associated with the network.
-            cluster_results (Dict[str, Any]): Cluster significance data.
+            stats_results (Dict[str, Any]): Cluster significance data.
             tail (str, optional): Type of significance tail ("right", "left", "both"). Defaults to "right".
             pval_cutoff (float, optional): p-value cutoff for significance. Defaults to 0.01.
             fdr_cutoff (float, optional): FDR cutoff for significance. Defaults to 0.9999.
@@ -94,8 +94,8 @@ class GraphAPI:
         )
         # Calculate significant clusters based on the provided parameters
         significant_clusters = calculate_significance_matrices(
-            cluster_results["depletion_pvals"],
-            cluster_results["enrichment_pvals"],
+            stats_results["depletion_pvals"],
+            stats_results["enrichment_pvals"],
             tail=tail,
             pval_cutoff=pval_cutoff,
             fdr_cutoff=fdr_cutoff,
@@ -151,7 +151,7 @@ class GraphAPI:
         return Graph(
             network=network,
             annotation=annotation,
-            cluster_results=cluster_results,
+            stats_results=stats_results,
             domains=domains,
             trimmed_domains=trimmed_domains,
             node_label_to_node_id_map=node_label_to_id,

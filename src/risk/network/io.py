@@ -603,6 +603,11 @@ class NetworkIO:
         distances = compute_distance_vectorized(edge_data, compute_sphere)
         # Assign Euclidean or spherical distances to edges
         for (u, v), distance in zip(G.edges, distances):
+            if not np.isfinite(distance) or distance <= 0:
+                logger.warning(
+                    f"Edge ({u},{v}) has invalid or non-positive length ({distance}); replaced with minimal fallback 1e-12."
+                )
+                distance = 1e-12
             G.edges[u, v]["length"] = distance
 
     def _map_to_sphere(self, G: nx.Graph) -> None:

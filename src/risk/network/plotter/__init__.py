@@ -1,6 +1,6 @@
 """
-risk/_network/_plotter
-~~~~~~~~~~~~~~~~~~~~~~
+risk/network/plotter
+~~~~~~~~~~~~~~~~~~~~
 """
 
 from .api import PlotterAPI

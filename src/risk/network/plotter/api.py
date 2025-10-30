@@ -32,7 +32,7 @@ class PlotterAPI:
 
         Args:
             graph (Graph): The graph to plot.
-            figsize (List, Tuple, or np.ndarray, optional): Size of the plot. Defaults to (10, 10)., optional): Size of the figure. Defaults to (10, 10).
+            figsize (List, Tuple, or np.ndarray, optional): Figure size in inches (width, height). Defaults to (10, 10).
             background_color (str, optional): Background color of the plot. Defaults to "white".
             background_alpha (float, None, optional): Transparency level of the background color. If provided, it overrides
                 any existing alpha values found in background_color. Defaults to 1.0.

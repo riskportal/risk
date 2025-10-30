@@ -245,6 +245,12 @@ def _safeguard_matrix(matrix: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: Safeguarded data matrix.
     """
+    # Safety guard: handle empty or invalid matrices
+    if matrix.size == 0 or not np.isfinite(matrix).any():
+        logger.warning(
+            "Input matrix is empty or contains no finite values. Returning a zero matrix of same shape."
+        )
+        return np.zeros(matrix.shape, dtype=float)
     # Replace NaN with column mean
     nan_replacement = np.nanmean(matrix, axis=0)
     matrix = np.where(np.isnan(matrix), nan_replacement, matrix)

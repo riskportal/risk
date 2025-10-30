@@ -1,6 +1,6 @@
 """
-risk/_network/_plotter/_utils
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+risk/network/plotter/_utils
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 from .colors import get_annotated_domain_colors, get_domain_colors, to_rgba
