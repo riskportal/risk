@@ -8,6 +8,7 @@ import pickle
 import sys
 
 import networkx as nx
+import numpy as np
 import pytest
 
 
@@ -415,3 +416,107 @@ def test_remove_isolates_does_not_raise(risk_obj, dummy_network):
         network=G, compute_sphere=False, surface_depth=0.1, min_edges_per_node=1
     )
     assert "iso" not in loaded.nodes, "Isolated node 'iso' should have been removed without error"
+
+
+def test_graph_properties_consistent_after_loading(risk_obj, dummy_network):
+    """
+    Test that key graph properties (number of nodes/edges, degree sequence) are preserved after loading.
+
+    Args:
+        risk_obj: The RISK object instance used for loading the network.
+        dummy_network: The NetworkX graph object to be loaded into the RISK network.
+    """
+    original_n = dummy_network.number_of_nodes()
+    original_e = dummy_network.number_of_edges()
+    original_deg = sorted([d for n, d in dummy_network.degree()])
+    loaded = risk_obj.load_network_networkx(network=dummy_network)
+    assert loaded.number_of_nodes() == original_n, "Node count changed after loading"
+    assert loaded.number_of_edges() == original_e, "Edge count changed after loading"
+    loaded_deg = sorted([d for n, d in loaded.degree()])
+    assert loaded_deg == original_deg, "Degree sequence changed after loading"
+
+
+def test_kcore_removal_and_connectivity(risk_obj, dummy_network):
+    """
+    Test that k-core removal via min_edges_per_node preserves connectivity if possible and removes nodes with < k degree.
+
+    Args:
+        risk_obj: The RISK object instance used for loading the network.
+        dummy_network: The NetworkX graph object to be loaded into the RISK network.
+    """
+    k = 2
+    loaded = risk_obj.load_network_networkx(network=dummy_network, min_edges_per_node=k)
+    # All nodes must have degree >= k
+    for n in loaded.nodes:
+        assert loaded.degree[n] >= k, f"Node {n} has degree < {k} after k-core removal"
+    # If the original was connected, the result should be empty only if k-core is empty
+    if nx.is_connected(dummy_network):
+        kcore = nx.k_core(dummy_network, k)
+        assert set(loaded.nodes) == set(
+            kcore.nodes
+        ), "Loaded k-core nodes do not match networkx k-core"
+
+
+def test_edge_lengths_positive_and_symmetric(risk_obj, dummy_network):
+    """
+    Test that all edge 'length' attributes are positive and symmetric after loading undirected network.
+
+    Args:
+        risk_obj: The RISK object instance used for loading the network.
+        dummy_network: The NetworkX graph object to be loaded into the RISK network.
+    """
+    loaded = risk_obj.load_network_networkx(network=dummy_network)
+    for u, v, attrs in loaded.edges(data=True):
+        assert attrs["length"] > 0, f"Edge ({u},{v}) has non-positive length"
+        # Symmetry: length(u,v) == length(v,u) for undirected
+        if loaded.has_edge(v, u):
+            attrs2 = loaded.get_edge_data(v, u)
+            assert np.isclose(
+                attrs["length"], attrs2["length"]
+            ), f"Edge lengths not symmetric for ({u},{v})"
+
+
+def test_node_coordinates_within_unit_bounds(risk_obj, data_path):
+    """
+    Test that all node coordinates are within [0, 1] after loading (for normalized layouts).
+
+    Args:
+        risk_obj: The RISK object instance used for loading the network.
+        data_path: The base path to the directory containing the Cytoscape file.
+    """
+    cys_file = data_path / "cytoscape" / "michaelis_2023.cys"
+    net = risk_obj.load_network_cytoscape(
+        filepath=str(cys_file),
+        source_label="source",
+        target_label="target",
+        compute_sphere=False,
+    )
+    for n, attrs in net.nodes(data=True):
+        assert 0.0 <= attrs["x"] <= 1.0, f"Node {n} x={attrs['x']} not in [0,1]"
+        assert 0.0 <= attrs["y"] <= 1.0, f"Node {n} y={attrs['y']} not in [0,1]"
+
+
+def test_deterministic_node_coordinates(risk_obj, data_path):
+    """
+    Test that node coordinates are deterministic: loading the same file twice yields same coordinates.
+
+    Args:
+        risk_obj: The RISK object instance used for loading the network.
+        data_path: The base path to the directory containing the Cytoscape file.
+    """
+    cys_file = data_path / "cytoscape" / "michaelis_2023.cys"
+    net1 = risk_obj.load_network_cytoscape(
+        filepath=str(cys_file),
+        source_label="source",
+        target_label="target",
+        compute_sphere=False,
+    )
+    net2 = risk_obj.load_network_cytoscape(
+        filepath=str(cys_file),
+        source_label="source",
+        target_label="target",
+        compute_sphere=False,
+    )
+    coords1 = [(attrs["x"], attrs["y"]) for n, attrs in sorted(net1.nodes(data=True))]
+    coords2 = [(attrs["x"], attrs["y"]) for n, attrs in sorted(net2.nodes(data=True))]
+    np.testing.assert_allclose(coords1, coords2, err_msg="Node coordinates are not deterministic")
