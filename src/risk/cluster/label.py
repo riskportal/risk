@@ -52,7 +52,7 @@ def define_domains(
         pd.DataFrame: DataFrame with the primary domain for each node.
 
     Raises:
-        ValueError: If the clustering criterion is set to "off" or if an error occurs during clustering.
+        ValueError: If any clustering argument is invalid.
     """
     # Validate args first; let user mistakes raise immediately
     clustering_off = _validate_clustering_args(

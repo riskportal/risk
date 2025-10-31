@@ -29,7 +29,7 @@ class AnnotationAPI:
         max_nodes_per_term: int = 10_000,
     ) -> Dict[str, Any]:
         """
-        Load annotation from a JSON file and convert them to a DataFrame.
+        Load annotation from a JSON file and return the standardized annotation mapping.
 
         Args:
             network (NetworkX graph): The network to which the annotation is related.
@@ -40,7 +40,7 @@ class AnnotationAPI:
                 term to be included. Defaults to 10_000.
 
         Returns:
-            Dict[str, Any]: A dictionary containing ordered nodes, ordered annotations, and the annotation matrix.
+            Dict[str, Any]: A dictionary with keys 'ordered_nodes', 'ordered_annotation', and 'matrix'.
         """
         filetype = "JSON"
         # Log the loading of the JSON file
@@ -70,7 +70,7 @@ class AnnotationAPI:
         max_nodes_per_term: int = 10_000,
     ) -> Dict[str, Any]:
         """
-        Load annotation from an Excel file and associate them with the network.
+        Load annotation from an Excel file and return the standardized annotation mapping.
 
         Args:
             network (nx.Graph): The NetworkX graph to which the annotation is related.
@@ -85,8 +85,7 @@ class AnnotationAPI:
                 term to be included. Defaults to 10_000.
 
         Returns:
-            Dict[str, Any]: A dictionary where each label is paired with its respective list of nodes,
-                            linked to the provided network.
+            Dict[str, Any]: A dictionary with keys 'ordered_nodes', 'ordered_annotation', and 'matrix'.
         """
         filetype = "Excel"
         # Log the loading of the Excel file
@@ -120,7 +119,7 @@ class AnnotationAPI:
         max_nodes_per_term: int = 10_000,
     ) -> Dict[str, Any]:
         """
-        Load annotation from a CSV file and associate them with the network.
+        Load annotation from a CSV file and return the standardized annotation mapping.
 
         Args:
             network (nx.Graph): The NetworkX graph to which the annotation is related.
@@ -134,8 +133,7 @@ class AnnotationAPI:
                 term to be included. Defaults to 10_000.
 
         Returns:
-            Dict[str, Any]: A dictionary where each label is paired with its respective list of nodes,
-                            linked to the provided network.
+            Dict[str, Any]: A dictionary with keys 'ordered_nodes', 'ordered_annotation', and 'matrix'.
         """
         filetype = "CSV"
         # Log the loading of the CSV file
@@ -165,7 +163,7 @@ class AnnotationAPI:
         max_nodes_per_term: int = 10_000,
     ) -> Dict[str, Any]:
         """
-        Load annotation from a TSV file and associate them with the network.
+        Load annotation from a TSV file and return the standardized annotation mapping.
 
         Args:
             network (nx.Graph): The NetworkX graph to which the annotation is related.
@@ -179,8 +177,7 @@ class AnnotationAPI:
                 term to be included. Defaults to 10_000.
 
         Returns:
-            Dict[str, Any]: A dictionary where each label is paired with its respective list of nodes,
-                            linked to the provided network.
+            Dict[str, Any]: A dictionary with keys 'ordered_nodes', 'ordered_annotation', and 'matrix'.
         """
         filetype = "TSV"
         # Log the loading of the TSV file
@@ -207,7 +204,7 @@ class AnnotationAPI:
         max_nodes_per_term: int = 10_000,
     ) -> Dict[str, Any]:
         """
-        Load annotation from a provided dictionary and convert them to a dictionary annotation.
+        Load annotation from an in-memory dictionary and return the standardized annotation mapping.
 
         Args:
             network (NetworkX graph): The network to which the annotation is related.
@@ -218,7 +215,7 @@ class AnnotationAPI:
                 term to be included. Defaults to 10_000.
 
         Returns:
-            Dict[str, Any]: A dictionary containing ordered nodes, ordered annotations, and the annotation matrix.
+            Dict[str, Any]: A dictionary with keys 'ordered_nodes', 'ordered_annotation', and 'matrix'.
 
         Raises:
             TypeError: If the content is not a dictionary.

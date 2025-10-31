@@ -172,7 +172,6 @@ class StatsAPI:
             clusters (csr_matrix): The cluster matrix to analyze.
             null_distribution (str, optional): The type of null distribution to use ('network' or 'annotation').
                 Defaults to "network".
-            random_seed (int, optional): Seed for random number generation to ensure reproducibility. Defaults to 888.
             statistical_test_key (str, optional): Key or name of the statistical test to be applied (e.g., "hypergeom", "binom").
                 Used for logging and debugging. Defaults to "hypergeom".
             statistical_test_function (Any, optional): The function implementing the statistical test.

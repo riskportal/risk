@@ -79,7 +79,7 @@ class Graph:
         Remove a domain ID from the graph and return the corresponding node labels.
 
         Args:
-            key (int): The domain ID key to be removed from each mapping.
+            domain_id (int): The domain ID to remove from the cached domain mappings.
 
         Returns:
             List[str]: A list of node labels associated with the domain ID.
@@ -186,16 +186,16 @@ class Graph:
         self, domains: pd.DataFrame
     ) -> Dict[int, Dict]:
         """
-        Creates a dictionary mapping each node ID to its corresponding domain IDs and significance values.
+        Create a mapping from each node ID to its significant domains and scores.
 
         Args:
             domains (pd.DataFrame): A DataFrame containing domain information for each node. Assumes the last
                 two columns are 'all domains' and 'primary domain', which are excluded from processing.
 
         Returns:
-            Dict[int, Dict]: A dictionary where the key is the node ID (index of the DataFrame), and the value is another dictionary
-                with 'domain' (a list of domain IDs with non-zero significance) and 'significance'
-                (a dict of domain IDs and their corresponding significance values).
+            Dict[int, Dict]: A dictionary keyed by node ID whose values contain two entries:
+                'domains' holding the list of domain columns with non-zero significance and
+                'significances' storing the corresponding scores.
         """
         # Initialize an empty dictionary to store the result
         node_id_to_domain_ids_and_significances = {}
