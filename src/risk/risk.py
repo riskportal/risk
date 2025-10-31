@@ -12,11 +12,11 @@ from .stats import StatsAPI
 
 class RISK(NetworkAPI, AnnotationAPI, ClusterAPI, StatsAPI, GraphAPI, PlotterAPI):
     """
-    RISK: A class for network analysis and visualization.
+    RISK: a framework for scalable network annotation and visualization.
 
-    The RISK class integrates functionalities for loading networks, processing annotations,
-    performing network-based statistical analysis to quantify cluster relationships,
-    and visualizing networks and their properties.
+    Combines clustering, statistical enrichment, and visualization methods into a unified API
+    for analyzing biological and interdisciplinary networks. Supports multiple input formats,
+    community detection algorithms, and statistical tests for functional annotation.
     """
 
     def __init__(self, verbose: bool = True):
