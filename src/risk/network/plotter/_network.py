@@ -273,14 +273,14 @@ class Network:
         return adjusted_network_colors
 
     def get_annotated_node_sizes(
-        self, significant_size: int = 50, nonsignificant_size: int = 25
+        self, significant_size: Union[int, float] = 50, nonsignificant_size: Union[int, float] = 25
     ) -> np.ndarray:
         """
         Adjust the sizes of nodes in the network graph based on whether they are significant or not.
 
         Args:
-            significant_size (int): Size for significant nodes. Defaults to 50.
-            nonsignificant_size (int): Size for non-significant nodes. Defaults to 25.
+            significant_size (int or float): Size for significant nodes. Can be an integer or float value. Defaults to 50.
+            nonsignificant_size (int or float): Size for non-significant nodes. Can be an integer or float value. Defaults to 25.
 
         Returns:
             np.ndarray: Array of node sizes, with significant nodes larger than non-significant ones.
