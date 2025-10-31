@@ -3,14 +3,14 @@ risk/risk
 ~~~~~~~~~
 """
 
-from .annotation import AnnotationHandler
+from .annotation import AnnotationAPI
 from .cluster import ClusterAPI
 from .log import params, set_global_verbosity
 from .network import GraphAPI, NetworkAPI, PlotterAPI
 from .stats import StatsAPI
 
 
-class RISK(NetworkAPI, AnnotationHandler, ClusterAPI, StatsAPI, GraphAPI, PlotterAPI):
+class RISK(NetworkAPI, AnnotationAPI, ClusterAPI, StatsAPI, GraphAPI, PlotterAPI):
     """
     RISK: A class for network analysis and visualization.
 
