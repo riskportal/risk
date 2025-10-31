@@ -405,6 +405,7 @@ def _prune_neighbors(
     non_zero_indices = np.where(significant_binary_significance_matrix.sum(axis=1) != 0)[0]
     median_distances = []
     distance_lookup = {}
+    isolated_nodes = []  # Track nodes with no significant neighbors
     for node in non_zero_indices:
         dist = _median_distance_to_significant_neighbors(
             node, network, significant_binary_significance_matrix
@@ -412,6 +413,8 @@ def _prune_neighbors(
         if dist is not None:
             median_distances.append(dist)
             distance_lookup[node] = dist
+        else:
+            isolated_nodes.append(node)  # Node has no significant neighbors
 
     if not median_distances:
         logger.warning("No significant neighbors found for pruning.")
@@ -432,6 +435,11 @@ def _prune_neighbors(
             significance_matrix[node] = 0
             significant_binary_significance_matrix[node] = 0
 
+    # Prune isolated nodes (no significant neighbors)
+    for node in isolated_nodes:
+        significance_matrix[node] = 0
+        significant_binary_significance_matrix[node] = 0
+
     # Create a matrix where non-significant entries are set to zero
     significant_significance_matrix = np.where(
         significant_binary_significance_matrix == 1, significance_matrix, 0
@@ -446,7 +454,7 @@ def _prune_neighbors(
 
 def _median_distance_to_significant_neighbors(
     node, network, significance_mask
-) -> Union[float, None]:
+) -> Union[float, Any, None]:
     """
     Calculate the median distance from a node to its significant neighbors.
 
@@ -458,11 +466,22 @@ def _median_distance_to_significant_neighbors(
     Returns:
         Union[float, None]: The median distance to significant neighbors, or None if no significant neighbors exist.
     """
-    neighbors = [n for n in network.neighbors(node) if significance_mask[n].sum() != 0]
+    # Get all neighbors at once
+    neighbors = list(network.neighbors(node))
     if not neighbors:
         return None
-    # Calculate distances to significant neighbors
-    distances = [_get_euclidean_distance(node, n, network) for n in neighbors]
+
+    # Vectorized check for significant neighbors
+    neighbors = np.array(neighbors)
+    significant_mask = significance_mask[neighbors].sum(axis=1) != 0
+    significant_neighbors = neighbors[significant_mask]
+    if len(significant_neighbors) == 0:
+        return None
+
+    # Vectorized distance calculation
+    node_pos = _get_node_position(network, node)
+    neighbor_positions = np.array([_get_node_position(network, n) for n in significant_neighbors])
+    distances = np.linalg.norm(neighbor_positions - node_pos, axis=1)
 
     return np.median(distances)
 
