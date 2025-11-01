@@ -39,6 +39,7 @@ class NetworkAPI:
             compute_sphere (bool, optional): Override or use API default. Defaults to True.
             surface_depth (float, optional): Override or use API default. Defaults to 0.0.
             min_edges_per_node (int, optional): Override or use API default. Defaults to 0.
+
         Returns:
             nx.Graph: Loaded and processed network.
         """
@@ -64,6 +65,7 @@ class NetworkAPI:
             compute_sphere (bool, optional): Override or use API default. Defaults to True.
             surface_depth (float, optional): Override or use API default. Defaults to 0.0.
             min_edges_per_node (int, optional): Override or use API default. Defaults to 0.
+
         Returns:
             nx.Graph: Processed network.
         """
@@ -95,6 +97,7 @@ class NetworkAPI:
             compute_sphere (bool, optional): Override or use API default. Defaults to True.
             surface_depth (float, optional): Override or use API default. Defaults to 0.0.
             min_edges_per_node (int, optional): Override or use API default. Defaults to 0.
+
         Returns:
             nx.Graph: Loaded and processed network.
         """
@@ -129,6 +132,7 @@ class NetworkAPI:
             compute_sphere (bool, optional): Override or use API default. Defaults to True.
             surface_depth (float, optional): Override or use API default. Defaults to 0.0.
             min_edges_per_node (int, optional): Override or use API default. Defaults to 0.
+
         Returns:
             nx.Graph: Loaded and processed network.
         """
