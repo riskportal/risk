@@ -19,7 +19,7 @@ from ._utils import get_annotated_domain_colors, to_rgba
 class Contour:
     """Class to generate Kernel Density Estimate (KDE) contours for nodes in a network graph."""
 
-    def __init__(self, graph: Graph, ax: plt.Axes) -> None:
+    def __init__(self, graph: Graph, ax: plt.Axes):
         """
         Initialize the Contour with a Graph and axis for plotting.
 

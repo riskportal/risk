@@ -33,7 +33,7 @@ class Plotter(Canvas, Network, Contour, Labels):
         background_color: Union[str, List, Tuple, np.ndarray] = "white",
         background_alpha: Union[float, None] = 1.0,
         pad: float = 0.3,
-    ) -> None:
+    ):
         """
         Initialize the Plotter with a Graph object and plotting parameters.
 

@@ -125,16 +125,23 @@ class StatsAPI:
         Compute cluster significance using the permutation test.
 
         Args:
-            annotation (Dict[str, Any]): The annotation associated with the network.
-            clusters (csr_matrix): The cluster matrix to use.
+            annotation (Dict[str, Any]): Annotation data, typically the output of
+                `AnnotationAPI.load_annotation_*`.
+            clusters (csr_matrix): Sparse cluster-by-node matrix created by a `ClusterAPI` method.
             score_metric (str, optional): Scoring metric for cluster significance. Defaults to "sum".
-            null_distribution (str, optional): Type of null distribution ('network' or 'annotation'). Defaults to "network".
-            num_permutations (int, optional): Number of permutations for significance testing. Defaults to 1000.
+            null_distribution (str, optional): Null distribution ('network' or 'annotation').
+                Defaults to "network".
+            num_permutations (int, optional): Number of permutations for significance testing.
+                Defaults to 1000.
             random_seed (int, optional): Seed for random number generation. Defaults to 888.
-            max_workers (int, optional): Maximum number of workers for parallel computation. Defaults to 1.
+            max_workers (int, optional): Maximum number of workers for parallel computation.
+                Defaults to 1.
 
         Returns:
-            Dict[str, Any]: The computed significance of clusters based on the specified statistical test.
+            Dict[str, Any]: Enrichment and depletion p-values for each cluster-term pair.
+
+        Raises:
+            ValueError: If `null_distribution` is not "network" or "annotation".
         """
         log_header("Running permutation test")
         # Log and display permutation test settings, which is unique to this test
@@ -181,6 +188,9 @@ class StatsAPI:
 
         Returns:
             Dict[str, Any]: A dictionary containing the computed significance values for clusters.
+
+        Raises:
+            ValueError: If `null_distribution` is not recognised by the statistical test function.
         """
         # Log null distribution type
         logger.debug(f"Null distribution: '{null_distribution}'")

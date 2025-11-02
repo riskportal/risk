@@ -50,7 +50,12 @@ def risk_obj():
 # Dummy fixtures for fast unit tests
 @pytest.fixture
 def dummy_network():
-    """Create a minimal network for unit tests."""
+    """
+    Create a minimal network for unit tests.
+
+    Returns:
+        nx.Graph: A minimal NetworkX graph object.
+    """
     # Simple graph with two nodes
     G = nx.Graph()
     G.add_nodes_from(["n1", "n2"])
@@ -70,7 +75,12 @@ def dummy_network():
 
 @pytest.fixture
 def dummy_annotation_dict():
-    """Provide a minimal annotation dictionary for unit tests."""
+    """
+    Provide a minimal annotation dictionary for unit tests.
+
+    Returns:
+        dict: A minimal annotation dictionary.
+    """
     return {"termA": ["n1"], "termB": ["n1", "n2"]}
 
 

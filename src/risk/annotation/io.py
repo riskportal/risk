@@ -32,15 +32,19 @@ class AnnotationAPI:
         Load annotation from a JSON file and return the standardized annotation mapping.
 
         Args:
-            network (NetworkX graph): The network to which the annotation is related.
+            network (nx.Graph): Graph whose node labels define valid annotation members.
             filepath (str): Path to the JSON annotation file.
-            min_nodes_per_term (int, optional): The minimum number of network nodes required for each annotation
-                term to be included. Defaults to 1.
-            max_nodes_per_term (int, optional): The maximum number of network nodes allowed for each annotation
-                term to be included. Defaults to 10_000.
+            min_nodes_per_term (int, optional): Minimum number of network nodes required for each
+                annotation term. Defaults to 1.
+            max_nodes_per_term (int, optional): Maximum number of network nodes allowed for each
+                annotation term. Defaults to 10_000.
 
         Returns:
-            Dict[str, Any]: A dictionary with keys 'ordered_nodes', 'ordered_annotation', and 'matrix'.
+            Dict[str, Any]: Mapping with `ordered_nodes`, `ordered_annotation`, and a sparse matrix.
+
+        Notes:
+            Annotation members must match the `label` attribute assigned to each node in `network`.
+            If no matching label is found, members will be searched in the node IDs.
         """
         filetype = "JSON"
         # Log the loading of the JSON file
@@ -52,7 +56,6 @@ class AnnotationAPI:
         )
         self._log_loading_annotation(filetype, filepath=filepath)
 
-        # Load the JSON file into a dictionary
         with open(filepath, "r", encoding="utf-8") as file:
             annotation_input = json.load(file)
 
@@ -97,13 +100,11 @@ class AnnotationAPI:
         )
         self._log_loading_annotation(filetype, filepath=filepath)
 
-        # Load the specified sheet from the Excel file
         annotation = pd.read_excel(filepath, sheet_name=sheet_name)
-        # Split the nodes column by the specified nodes_delimiter
+        # Normalise delimited node strings (e.g. "gene1;gene2") before matrix construction.
         annotation[nodes_colname] = annotation[nodes_colname].apply(
             lambda x: x.split(nodes_delimiter)
         )
-        # Convert the DataFrame to a dictionary pairing labels with their corresponding nodes
         annotation_input = annotation.set_index(label_colname)[nodes_colname].to_dict()
 
         return load_annotation(network, annotation_input, min_nodes_per_term, max_nodes_per_term)
@@ -145,7 +146,6 @@ class AnnotationAPI:
         )
         self._log_loading_annotation(filetype, filepath=filepath)
 
-        # Load the CSV file into a dictionary
         annotation_input = self._load_matrix_file(
             filepath, label_colname, nodes_colname, delimiter=",", nodes_delimiter=nodes_delimiter
         )
@@ -189,7 +189,6 @@ class AnnotationAPI:
         )
         self._log_loading_annotation(filetype, filepath=filepath)
 
-        # Load the TSV file into a dictionary
         annotation_input = self._load_matrix_file(
             filepath, label_colname, nodes_colname, delimiter="\t", nodes_delimiter=nodes_delimiter
         )
@@ -220,14 +219,13 @@ class AnnotationAPI:
         Raises:
             TypeError: If the content is not a dictionary.
         """
-        # Ensure the input content is a dictionary
         if not isinstance(content, dict):
             raise TypeError(
                 f"Expected 'content' to be a dictionary, but got {type(content).__name__} instead."
             )
 
         filetype = "Dictionary"
-        # Log the loading of the annotation from the dictionary
+        # Capture that the annotation originated in-memory for reproducible params dumps.
         params.log_annotation(
             filepath="In-memory dictionary",
             filetype=filetype,
@@ -236,7 +234,6 @@ class AnnotationAPI:
         )
         self._log_loading_annotation(filetype, "In-memory dictionary")
 
-        # Load the annotation as a dictionary from the provided dictionary
         return load_annotation(network, content, min_nodes_per_term, max_nodes_per_term)
 
     def _load_matrix_file(
@@ -260,13 +257,11 @@ class AnnotationAPI:
         Returns:
             Dict[str, Any]: A dictionary where each label is paired with its respective list of nodes.
         """
-        # Load the CSV or TSV file into a DataFrame
         annotation = pd.read_csv(filepath, delimiter=delimiter)
-        # Split the nodes column by the nodes_delimiter to handle multiple nodes per label
+        # Split multi-valued cells into lists so sparse matrix conversion sees iterable members.
         annotation[nodes_colname] = annotation[nodes_colname].apply(
             lambda x: x.split(nodes_delimiter)
         )
-        # Create a dictionary pairing labels with their corresponding list of nodes
         label_node_dict = annotation.set_index(label_colname)[nodes_colname].to_dict()
         return label_node_dict
 

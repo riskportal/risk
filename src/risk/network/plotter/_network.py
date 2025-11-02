@@ -20,7 +20,7 @@ class Network:
     The Network class provides methods to plot network graphs with flexible node and edge properties.
     """
 
-    def __init__(self, graph: Graph, ax: Any = None) -> None:
+    def __init__(self, graph: Graph, ax: Any = None):
         """
         Initialize the Plotter class.
 

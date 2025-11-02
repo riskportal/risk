@@ -704,7 +704,15 @@ class Labels:
         """
 
         def try_combinations(words_batch: List[str]) -> List[str]:
-            """Try to combine words within a batch and return them with combined words separated by ':'."""
+            """
+            Try to combine words within a batch and return them with combined words separated by ':'.
+
+            Args:
+                words_batch (List[str]): List of words to combine.
+
+            Returns:
+                List[str]: List of combined words separated by ':'.
+            """
             combined_lines = []
             i = 0
             while i < len(words_batch):

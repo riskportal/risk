@@ -123,18 +123,29 @@ class NetworkAPI:
         min_edges_per_node: int = 0,
     ) -> nx.Graph:
         """
-        Load a network from a Cytoscape JSON (.cyjs) file via NetworkIO.
+        Load a network from a Cytoscape JSON (.cyjs) file through `NetworkIO`.
 
         Args:
             filepath (str): Path to the Cytoscape JSON file.
-            source_label (str, optional): Source node label. Defaults to "source".
-            target_label (str, optional): Target node label. Defaults to "target".
-            compute_sphere (bool, optional): Override or use API default. Defaults to True.
-            surface_depth (float, optional): Override or use API default. Defaults to 0.0.
-            min_edges_per_node (int, optional): Override or use API default. Defaults to 0.
+            source_label (str, optional): Column storing source node ids. Defaults to "source".
+            target_label (str, optional): Column storing target node ids. Defaults to "target".
+            compute_sphere (bool, optional): Whether to project coordinates onto a sphere before
+                flattening. Defaults to True.
+            surface_depth (float, optional): Depth offset used during sphere projection. Defaults
+                to 0.0.
+            min_edges_per_node (int, optional): Minimum degree retained during k-core pruning.
+                Defaults to 0.
 
         Returns:
-            nx.Graph: Loaded and processed network.
+            nx.Graph: Processed network with numeric node ids and normalized coordinates.
+
+        Raises:
+            FileNotFoundError: If `filepath` cannot be opened.
+            KeyError: If the JSON metadata lacks the requested source or target columns.
+            ValueError: If any node is missing coordinates or positional metadata.
+
+        Notes:
+            Per-call keyword arguments override the defaults persisted in `risk.log.params`.
         """
         io = NetworkIO(
             compute_sphere=compute_sphere,
@@ -251,40 +262,34 @@ class NetworkIO:
 
         cys_files = []
         tmp_dir = ".tmp_cytoscape"
-        # Try / finally to remove unzipped files
+        # Extract the Cytoscape bundle into a throwaway directory so intermediate files never linger.
         try:
-            # Create the temporary directory if it doesn't exist
-            if not os.path.exists(tmp_dir):
-                os.makedirs(tmp_dir)
-
-            # Unzip CYS file into the temporary directory
+            os.makedirs(tmp_dir, exist_ok=True)
+            # Cytoscape bundles node layout and attribute tables together; unpack once for reuse below.
             with zipfile.ZipFile(filepath, "r") as zip_ref:
                 cys_files = zip_ref.namelist()
                 zip_ref.extractall(tmp_dir)
 
-            # Get first view and network instances
+            # Reuse the first or requested view so downstream plots mirror Cytoscape's layout.
             cys_view_files = [os.path.join(tmp_dir, cf) for cf in cys_files if "/views/" in cf]
             cys_view_file = (
                 cys_view_files[0]
                 if not view_name
                 else [cvf for cvf in cys_view_files if cvf.endswith(view_name + ".xgmml")][0]
             )
-            # Parse nodes
             cys_view_dom = minidom.parse(cys_view_file)
             cys_nodes = cys_view_dom.getElementsByTagName("node")
             node_x_positions = {}
             node_y_positions = {}
             for node in cys_nodes:
-                # Node ID is found in 'label'
                 node_id = str(node.attributes["label"].value)
                 for child in node.childNodes:
                     if child.nodeType == 1 and child.tagName == "graphics":
                         node_x_positions[node_id] = float(child.attributes["x"].value)
                         node_y_positions[node_id] = float(child.attributes["y"].value)
 
-            # Read the node attributes (from /tables/)
+            # Locate the attribute table that stores edge definitions (source/target columns).
             attribute_metadata_keywords = ["/tables/", "SHARED_ATTRS", "edge.cytable"]
-            # Use a generator to find the first matching file
             attribute_metadata = next(
                 (
                     os.path.join(tmp_dir, cf)
@@ -307,21 +312,16 @@ class NetworkIO:
             else:
                 raise ValueError("No matching attribute metadata file found.")
 
-            # Set columns
             attribute_table.columns = attribute_table.iloc[0]
-            # Skip first four rows, select source and target columns, and reset index
             attribute_table = attribute_table.iloc[4:, :]
             try:
-                # Attempt to filter the attribute_table with the given labels
                 attribute_table = attribute_table[[source_label, target_label]]
             except KeyError as e:
-                # Find which key(s) caused the issue
                 missing_keys = [
                     key
                     for key in [source_label, target_label]
                     if key not in attribute_table.columns
                 ]
-                # Raise the KeyError with details about the issue and available options
                 available_columns = ", ".join(attribute_table.columns)
                 raise KeyError(
                     f"The column(s) '{', '.join(missing_keys)}' do not exist in the table. "
@@ -330,43 +330,45 @@ class NetworkIO:
 
             attribute_table = attribute_table.dropna().reset_index(drop=True)
 
-            # Create a graph
+            # Build a new graph using the restored edge table and the captured coordinates.
             G = nx.Graph()
-            # Add edges and nodes
             for _, row in attribute_table.iterrows():
                 source = row[source_label]
                 target = row[target_label]
                 G.add_edge(source, target)
-                if source not in G:
-                    G.add_node(source)  # Optionally add x, y coordinates here if available
-                if target not in G:
-                    G.add_node(target)  # Optionally add x, y coordinates here if available
 
-            # Add node attributes
             for node in G.nodes():
                 G.nodes[node]["label"] = node
                 G.nodes[node]["x"] = node_x_positions[node]
                 G.nodes[node]["y"] = node_y_positions[node]
 
-            # Initialize the graph
             return self._initialize_graph(G)
 
         finally:
-            # Remove the temporary directory and its contents
             if os.path.exists(tmp_dir):
                 shutil.rmtree(tmp_dir)
 
-    def load_network_cyjs(self, filepath, source_label="source", target_label="target"):
+    def load_network_cyjs(
+        self,
+        filepath: str,
+        source_label: str = "source",
+        target_label: str = "target",
+    ) -> nx.Graph:
         """
-        Load a network from a Cytoscape JSON (.cyjs) file.
+        Load and normalize a Cytoscape JSON (.cyjs) network.
 
         Args:
             filepath (str): Path to the Cytoscape JSON file.
-            source_label (str, optional): Source node label. Default is "source".
-            target_label (str, optional): Target node label. Default is "target".
+            source_label (str, optional): Column storing source node ids. Defaults to "source".
+            target_label (str, optional): Column storing target node ids. Defaults to "target".
 
         Returns:
-            NetworkX graph: Loaded and processed network.
+            nx.Graph: Graph with labels, coordinates, and weights prepared for downstream use.
+
+        Raises:
+            FileNotFoundError: If `filepath` cannot be opened.
+            KeyError: If the JSON metadata lacks the requested source or target columns.
+            ValueError: If any node is missing coordinates or positional metadata.
         """
         filetype = "Cytoscape JSON"
         # Log the loading of the Cytoscape JSON file
@@ -377,39 +379,33 @@ class NetworkIO:
         with open(filepath, "r", encoding="utf-8") as f:
             cyjs_data = json.load(f)
 
-        # Create a graph
         G = nx.Graph()
-        # Store node positions for later use
         node_x_positions = {}
         node_y_positions = {}
+        # Cytoscape JSON stores positions under the view "position" block.
         for node in cyjs_data["elements"]["nodes"]:
             node_data = node["data"]
-            # Use the original node ID if available, otherwise use the default ID
             node_id = node_data.get("id_original", node_data.get("id"))
             node_x_positions[node_id] = node["position"]["x"]
             node_y_positions[node_id] = node["position"]["y"]
 
-        # Process edges and add them to the graph
+        # Edges reference original IDs; keep fallbacks so legacy exports still load.
         for edge in cyjs_data["elements"]["edges"]:
             edge_data = edge["data"]
-            # Use the original source and target labels if available, otherwise fall back to default labels
             source = edge_data.get(f"{source_label}_original", edge_data.get(source_label))
             target = edge_data.get(f"{target_label}_original", edge_data.get(target_label))
             G.add_edge(source, target)
 
-            # Ensure nodes exist in the graph and add them if not present
             if source not in G:
                 G.add_node(source)
             if target not in G:
                 G.add_node(target)
 
-        # Add node attributes (like label, x, y positions)
         for node in G.nodes():
             G.nodes[node]["label"] = node
-            G.nodes[node]["x"] = node_x_positions.get(node, 0)  # Use stored positions
-            G.nodes[node]["y"] = node_y_positions.get(node, 0)  # Use stored positions
+            G.nodes[node]["x"] = node_x_positions.get(node, 0)
+            G.nodes[node]["y"] = node_y_positions.get(node, 0)
 
-        # Initialize the graph
         return self._initialize_graph(G)
 
     def _initialize_graph(self, G: nx.Graph) -> nx.Graph:
@@ -583,8 +579,17 @@ class NetworkIO:
             compute_sphere (bool): Whether to compute spherical distances.
         """
 
-        def compute_distance_vectorized(coords, is_sphere):
-            """Compute Euclidean or spherical distances between edges in bulk."""
+        def compute_distance_vectorized(coords, is_sphere) -> np.ndarray:
+            """
+            Compute Euclidean or spherical distances between edges in bulk.
+
+            Args:
+                coords (np.ndarray): Array of shape (num_edges, 2, num_dimensions) containing coordinates.
+                is_sphere (bool): Whether to compute spherical distances.
+
+            Returns:
+                np.ndarray: Array of distances for each edge.
+            """
             u_coords, v_coords = coords[:, 0, :], coords[:, 1, :]
             if is_sphere:
                 u_coords /= np.linalg.norm(u_coords, axis=1, keepdims=True)

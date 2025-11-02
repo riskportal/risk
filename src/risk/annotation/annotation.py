@@ -19,8 +19,7 @@ from ._nltk_setup import setup_nltk_resources
 
 
 def initialize_nltk():
-    """
-    Initialize all required NLTK components."""
+    """Initialize all required NLTK components."""
     setup_nltk_resources()
 
     # After resources are available, initialize the components

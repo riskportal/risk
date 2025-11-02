@@ -17,7 +17,7 @@ from ._utils.layout import calculate_bounding_box
 class Canvas:
     """A class for laying out the canvas in a network graph."""
 
-    def __init__(self, graph: Graph, ax: plt.Axes) -> None:
+    def __init__(self, graph: Graph, ax: plt.Axes):
         """
         Initialize the Canvas with a Graph and axis for plotting.
 
