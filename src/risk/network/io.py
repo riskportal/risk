@@ -138,14 +138,6 @@ class NetworkAPI:
 
         Returns:
             nx.Graph: Processed network with numeric node ids and normalized coordinates.
-
-        Raises:
-            FileNotFoundError: If `filepath` cannot be opened.
-            KeyError: If the JSON metadata lacks the requested source or target columns.
-            ValueError: If any node is missing coordinates or positional metadata.
-
-        Notes:
-            Per-call keyword arguments override the defaults persisted in `risk.log.params`.
         """
         io = NetworkIO(
             compute_sphere=compute_sphere,
@@ -364,11 +356,6 @@ class NetworkIO:
 
         Returns:
             nx.Graph: Graph with labels, coordinates, and weights prepared for downstream use.
-
-        Raises:
-            FileNotFoundError: If `filepath` cannot be opened.
-            KeyError: If the JSON metadata lacks the requested source or target columns.
-            ValueError: If any node is missing coordinates or positional metadata.
         """
         filetype = "Cytoscape JSON"
         # Log the loading of the Cytoscape JSON file
@@ -579,7 +566,7 @@ class NetworkIO:
             compute_sphere (bool): Whether to compute spherical distances.
         """
 
-        def compute_distance_vectorized(coords, is_sphere) -> np.ndarray:
+        def compute_distance_vectorized(coords: np.ndarray, is_sphere: bool) -> np.ndarray:
             """
             Compute Euclidean or spherical distances between edges in bulk.
 

@@ -11,7 +11,13 @@ from .stats import StatsAPI
 
 
 class RISK(NetworkAPI, AnnotationAPI, ClusterAPI, StatsAPI, GraphAPI, PlotterAPI):
-    """High-level API for network loading, annotation, clustering, statistics, and plotting."""
+    """
+    RISK: a framework for scalable network annotation and visualization.
+
+    Combines clustering, statistical enrichment, and visualization methods into a unified API
+    for analyzing biological and interdisciplinary networks. Supports multiple input formats,
+    community detection algorithms, and statistical tests for functional annotation.
+    """
 
     def __init__(self, verbose: bool = True):
         """
@@ -19,10 +25,6 @@ class RISK(NetworkAPI, AnnotationAPI, ClusterAPI, StatsAPI, GraphAPI, PlotterAPI
 
         Args:
             verbose (bool): Whether to emit debug-level log messages. Defaults to True.
-
-        Notes:
-            The instance exposes the shared `params` object so downstream analysis can
-            inspect the configuration captured during each load or run call.
         """
         # Set global verbosity for logging
         set_global_verbosity(verbose)
