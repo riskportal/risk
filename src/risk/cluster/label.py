@@ -66,7 +66,14 @@ def define_domains(
         top_annotation["domain"] = range(1, n_rows + 1)
     else:
         # Transpose the matrix to cluster annotations
-        m = significant_clusters_significance[:, top_annotation["significant_annotation"]].T
+        significant_mask = top_annotation["significant_annotation"]
+        if not significant_mask.any():
+            raise ValueError(
+                "Domain clustering aborted: no annotations remained significant after enrichment filtering. "
+                "RISK did not detect any terms passing the significance thresholds, so domains cannot be defined. "
+                "Consider relaxing `pval_cutoff`/`fdr_cutoff`, reviewing pruning settings, or inspecting annotation coverage."
+            )
+        m = significant_clusters_significance[:, significant_mask].T
         # Safeguard the matrix by replacing NaN, Inf, and -Inf values
         m = _safeguard_matrix(m)
         try:
