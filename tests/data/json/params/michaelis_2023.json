@@ -17,7 +17,7 @@
         "max_cluster_size": 1000
     },
     "neighborhoods": {
-        "distance_metric": "louvain",
+        "clustering": "louvain",
         "louvain_resolution": 10,
         "edge_length_threshold": 0.25,
         "score_metric": "stdev",

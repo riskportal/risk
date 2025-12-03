@@ -50,7 +50,12 @@ def risk_obj():
 # Dummy fixtures for fast unit tests
 @pytest.fixture
 def dummy_network():
-    """Create a minimal network for unit tests."""
+    """
+    Create a minimal network for unit tests.
+
+    Returns:
+        nx.Graph: A minimal NetworkX graph object.
+    """
     # Simple graph with two nodes
     G = nx.Graph()
     G.add_nodes_from(["n1", "n2"])
@@ -70,7 +75,12 @@ def dummy_network():
 
 @pytest.fixture
 def dummy_annotation_dict():
-    """Provide a minimal annotation dictionary for unit tests."""
+    """
+    Provide a minimal annotation dictionary for unit tests.
+
+    Returns:
+        dict: A minimal annotation dictionary.
+    """
     return {"termA": ["n1"], "termB": ["n1", "n2"]}
 
 
@@ -188,7 +198,7 @@ def annotation_dict(data_path):
     Returns:
         dict: The loaded annotation as a dictionary.
     """
-    annotation_file = data_path / "json" / "annotation" / "go_biological_process.json"
+    annotation_file = data_path / "json" / "annotation" / "go_biological_process_minified.json"
     # Load the JSON file and return as a dictionary
     with open(annotation_file, "r", encoding="utf-8") as file:
         annotation_dict = json.load(file)
@@ -209,7 +219,7 @@ def json_annotation(risk_obj, cytoscape_network, data_path):
     Returns:
         Annotation: The loaded annotation object.
     """
-    annotation_file = data_path / "json" / "annotation" / "go_biological_process.json"
+    annotation_file = data_path / "json" / "annotation" / "go_biological_process_minified.json"
     return risk_obj.load_annotation_json(filepath=str(annotation_file), network=cytoscape_network)
 
 
@@ -315,25 +325,27 @@ def graph(risk_obj, cytoscape_network, json_annotation):
     """
     network = cytoscape_network
     annotation = json_annotation
-    # Build neighborhoods based on the loaded network and annotation
-    neighborhoods = risk_obj.load_neighborhoods_permutation(
-        network=network,
-        annotation=annotation,
-        distance_metric="louvain",
-        louvain_resolution=8,
-        leiden_resolution=1.0,
+    # Build clusters based on the loaded network and annotation
+    clusters = risk_obj.cluster_leiden(
+        network=cytoscape_network,
         fraction_shortest_edges=0.75,
-        score_metric="stdev",
+        resolution=1.0,
+        random_seed=887,
+    )
+    stats_results = risk_obj.run_permutation(
+        annotation=json_annotation,
+        clusters=clusters,
         null_distribution="network",
+        score_metric="stdev",
         num_permutations=20,
         random_seed=887,
         max_workers=1,
     )
-    # Build the graph using the neighborhoods
+    # Build the graph using the clusters
     graph = risk_obj.load_graph(
         network=network,
         annotation=annotation,
-        neighborhoods=neighborhoods,
+        stats_results=stats_results,
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
@@ -347,3 +359,13 @@ def graph(risk_obj, cytoscape_network, json_annotation):
         max_cluster_size=1000,
     )
     return graph
+
+
+@pytest.fixture(scope="session")
+def clusters_matrix(risk_obj, cytoscape_network):
+    return risk_obj.cluster_louvain(
+        network=cytoscape_network,
+        fraction_shortest_edges=0.75,
+        resolution=8,
+        random_seed=887,
+    )

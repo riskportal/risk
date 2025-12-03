@@ -12,7 +12,7 @@ graph,linkage_method,average
 graph,linkage_metric,yule
 graph,min_cluster_size,6
 graph,max_cluster_size,1000
-neighborhoods,distance_metric,louvain
+neighborhoods,clustering,louvain
 neighborhoods,louvain_resolution,10
 neighborhoods,edge_length_threshold,0.25
 neighborhoods,score_metric,stdev
