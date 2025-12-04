@@ -56,7 +56,7 @@ DOI: [10.5281/zenodo.17257418](https://doi.org/10.5281/zenodo.17257418)
 We welcome contributions from the community:
 
 - [Issues Tracker](https://github.com/riskportal/risk/issues)
-- [Source Code](https://github.com/riskportal/risk/tree/main/risk)
+- [Source Code](https://github.com/riskportal/risk/tree/main/src/risk)
 
 ## Support
 
