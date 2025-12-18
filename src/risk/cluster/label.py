@@ -71,7 +71,9 @@ def define_domains(
             raise ValueError(
                 "Domain clustering aborted: no annotations remained significant after enrichment filtering. "
                 "RISK did not detect any terms passing the significance thresholds, so domains cannot be defined. "
-                "Consider relaxing `pval_cutoff`/`fdr_cutoff`, reviewing pruning settings, or inspecting annotation coverage."
+                "To proceed without domain clustering, set `linkage_criterion='off'`, which disables clustering "
+                "and assigns domains directly from raw enrichment values. "
+                "Alternatively, consider relaxing `pval_cutoff`/`fdr_cutoff` or reviewing annotation coverage."
             )
         m = significant_clusters_significance[:, significant_mask].T
         # Safeguard the matrix by replacing NaN, Inf, and -Inf values
@@ -91,9 +93,9 @@ def define_domains(
                 f"Linkage criterion: '{linkage_criterion}'\nLinkage method: '{best_linkage}'\nLinkage metric: '{best_metric}'\nLinkage threshold: {round(best_threshold, 3)}"
             )
             # Calculate the optimal threshold for clustering
-            max_d_optimal = np.max(Z[:, 2]) * best_threshold
+            cut_param = np.max(Z[:, 2]) * best_threshold
             # Assign domains to the annotation matrix
-            domains = fcluster(Z, max_d_optimal, criterion=linkage_criterion)
+            domains = fcluster(Z, cut_param, criterion=linkage_criterion)
             top_annotation["domain"] = 0
             top_annotation.loc[top_annotation["significant_annotation"], "domain"] = domains
         except (LinAlgError, ValueError):
@@ -217,6 +219,11 @@ def _validate_clustering_args(
     Raises:
         ValueError: If any argument is invalid (user error).
     """
+    allowed_criteria = {"distance", "off"}
+    if linkage_criterion not in allowed_criteria:
+        raise ValueError(
+            f"Invalid linkage_criterion '{linkage_criterion}'. Allowed values are 'distance' or 'off'."
+        )
     # Allow opting out of clustering without raising
     if linkage_criterion == "off":
         return True
@@ -323,9 +330,10 @@ def _optimize_silhouette_across_linkage_and_metrics(
                     continue  # Skip to the next combination
                 current_threshold = threshold
             else:
+                cut_param = linkage_threshold * np.max(Z[:, 2])
                 score = silhouette_score(
                     m,
-                    fcluster(Z, linkage_threshold * np.max(Z[:, 2]), criterion=linkage_criterion),
+                    fcluster(Z, cut_param, criterion=linkage_criterion),
                     metric=metric,
                 )
                 current_threshold = linkage_threshold

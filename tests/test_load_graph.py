@@ -365,7 +365,7 @@ def test_linkage_criterion_and_auto_clustering_options(
         json_annotation: The JSON annotation associated with the network.
     """
     # Define parameters for testing
-    test_criteria = ["maxclust", "distance", "off"]
+    test_criteria = ["distance", "off"]
     min_cluster_size, max_cluster_size = 10, 200  # Fixed for simplicity
     for criterion in test_criteria:
         # === Cluster and Stats ===
@@ -400,8 +400,12 @@ def test_linkage_criterion_and_auto_clustering_options(
 
         # Validate graph for all criteria
         _validate_graph(graph)
-        # Check cluster size bounds for 'distance', 'maxclust', and 'off' criteria
+        # Check cluster size bounds for 'distance' and 'off' criteria
         _check_component_sizes(graph.domain_id_to_node_ids_map, min_cluster_size, max_cluster_size)
+        # Ensure summary can be loaded for each criterion (public API coverage)
+        summary = graph.summary.load()
+        assert isinstance(summary, pd.DataFrame)
+        assert {"Annotation", "Domain ID"}.issubset(set(summary.columns))
 
 
 def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
