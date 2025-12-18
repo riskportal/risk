@@ -598,13 +598,22 @@ class NetworkIO:
         # Compute distances
         distances = compute_distance_vectorized(edge_data, compute_sphere)
         # Assign Euclidean or spherical distances to edges
+        n_invalid = 0
         for (u, v), distance in zip(G.edges, distances):
             if not np.isfinite(distance) or distance <= 0:
-                logger.warning(
-                    f"Edge ({u},{v}) has invalid or non-positive length ({distance}); replaced with minimal fallback 1e-12."
-                )
+                n_invalid += 1
                 distance = 1e-12
             G.edges[u, v]["length"] = distance
+
+        # Log a warning if any invalid lengths were found
+        if n_invalid > 0:
+            total_edges = G.number_of_edges()
+            logger.warning(
+                "EDGE LENGTH WARNING — "
+                f"{n_invalid} out of {total_edges} edges "
+                f"({n_invalid / total_edges:.2%}) had invalid or non-positive lengths "
+                "and were replaced with a minimal fallback value (1e-12)."
+            )
 
     def _map_to_sphere(self, G: nx.Graph) -> None:
         """

@@ -457,23 +457,28 @@ def test_kcore_removal_and_connectivity(risk_obj, dummy_network):
         ), "Loaded k-core nodes do not match networkx k-core"
 
 
-def test_edge_lengths_positive_and_symmetric(risk_obj, dummy_network):
+def test_edge_lengths_positive_and_symmetric(risk_obj, dummy_network, caplog):
     """
-    Test that all edge 'length' attributes are positive and symmetric after loading undirected network.
+    Test that all edge 'length' attributes are positive and symmetric after loading
+    an undirected network, and that edge-length issues (if any) are reported as a
+    single consolidated warning.
+    """
+    caplog.clear()
 
-    Args:
-        risk_obj: The RISK object instance used for loading the network.
-        dummy_network: The NetworkX graph object to be loaded into the RISK network.
-    """
     loaded = risk_obj.load_network_networkx(network=dummy_network)
+
+    # Validate edge length properties
     for u, v, attrs in loaded.edges(data=True):
         assert attrs["length"] > 0, f"Edge ({u},{v}) has non-positive length"
-        # Symmetry: length(u,v) == length(v,u) for undirected
         if loaded.has_edge(v, u):
             attrs2 = loaded.get_edge_data(v, u)
             assert np.isclose(
                 attrs["length"], attrs2["length"]
             ), f"Edge lengths not symmetric for ({u},{v})"
+
+    # Logging behavior: either silent or a single summary warning
+    warnings = [rec for rec in caplog.records if rec.levelname == "WARNING"]
+    assert len(warnings) <= 1, "Expected at most one consolidated warning for edge lengths"
 
 
 def test_node_coordinates_within_unit_bounds(risk_obj, data_path):
