@@ -21,7 +21,7 @@ class RISK(NetworkAPI, AnnotationAPI, ClusterAPI, StatsAPI, GraphAPI, PlotterAPI
 
     def __init__(self, verbose: bool = True):
         """
-        Create a high-level API instance and propagate verbosity to affiliated modules.
+        Initialize the high-level API and propagate verbosity to all submodules.
 
         Args:
             verbose (bool): Whether to emit debug-level log messages. Defaults to True.
