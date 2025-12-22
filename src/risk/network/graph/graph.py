@@ -67,6 +67,9 @@ class Graph:
 
         # NOTE: Below this point, instance attributes (i.e., self) will be used!
         self.domain_id_to_node_labels_map = self._create_domain_id_to_node_labels_map()
+        self.domain_id_to_enriched_node_labels_map = (
+            self._create_domain_id_to_enriched_node_labels_map()
+        )
         # Unfold the network's 3D coordinates to 2D and extract node coordinates
         self.network = self._unfold_sphere_to_plane(network)
         self.node_coordinates = self._extract_node_coordinates(self.network)
@@ -231,6 +234,26 @@ class Graph:
             ]
 
         return domain_id_to_label_map
+
+    def _create_domain_id_to_enriched_node_labels_map(self) -> Dict[int, List[str]]:
+        """
+        Create a map from domain IDs to node labels based on enrichment membership.
+        Unlike the primary domain mapping, this representation allows nodes to
+        appear in multiple domains if they show significant enrichment. This map
+        reflects functional association rather than layout or ownership.
+
+        Returns:
+            Dict[int, List[str]]: A dictionary mapping domain IDs to node labels
+            that are significantly enriched for that domain.
+        """
+        domain_id_to_enriched_labels_map = defaultdict(list)
+        for node_id, info in self.node_id_to_domain_ids_and_significance_map.items():
+            for domain_id in info["domains"]:
+                domain_id_to_enriched_labels_map[domain_id].append(
+                    self.node_id_to_node_label_map[node_id]
+                )
+
+        return dict(domain_id_to_enriched_labels_map)
 
     def _unfold_sphere_to_plane(self, G: nx.Graph) -> nx.Graph:
         """

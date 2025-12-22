@@ -220,10 +220,9 @@ def _get_composite_node_colors(
             filtered_domains, filtered_significances = zip(*filtered_domains_significances)
             # Get the colors corresponding to the valid filtered domains
             colors = [domain_ids_to_colors[domain_id] for domain_id in filtered_domains]
-            # Blend the colors using the given gamma (default is 2.2 if None)
-            gamma = blend_gamma if blend_gamma is not None else 2.2
+            # Blend the colors using the given gamma
             composite_color = _blend_colors_perceptually(
-                colors, list(filtered_significances), gamma
+                colors, list(filtered_significances), blend_gamma
             )
             # Assign the composite color to the node
             composite_colors[node] = composite_color

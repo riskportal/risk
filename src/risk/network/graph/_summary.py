@@ -99,40 +99,58 @@ class Summary:
                 {"Domain ID": domain_id, "Annotation": desc, "Summed Significance Score": score}
                 for domain_id, info in self.graph.domain_id_to_domain_info_map.items()
                 for desc, score in zip(info["full_descriptions"], info["significance_scores"])
-            ]
+            ],
+            columns=["Domain ID", "Annotation", "Summed Significance Score"],
         )
-        # Sort by Domain ID and Summed Significance Score
-        results = results.sort_values(
-            by=["Domain ID", "Summed Significance Score"], ascending=[True, False]
-        ).reset_index(drop=True)
 
-        # Add minimum p-values and q-values to DataFrame
-        results[
-            [
-                "Enrichment P-value",
-                "Enrichment Q-value",
-                "Depletion P-value",
-                "Depletion Q-value",
-            ]
-        ] = results.apply(
-            lambda row: self._get_significance_values(
-                row["Domain ID"],
-                row["Annotation"],
-                enrichment_pvals,
-                depletion_pvals,
-                enrichment_qvals,
-                depletion_qvals,
-            ),
-            axis=1,
-            result_type="expand",
-        )
-        # Add matched annotation members and their counts
-        results["Matched Members"] = results["Annotation"].apply(
-            lambda desc: self._get_annotation_members(desc)
-        )
-        results["Matched Count"] = results["Matched Members"].apply(
-            lambda x: len(x.split(";")) if x else 0
-        )
+        if not results.empty:
+            # Sort by Domain ID and Summed Significance Score
+            results = results.sort_values(
+                by=["Domain ID", "Summed Significance Score"], ascending=[True, False]
+            ).reset_index(drop=True)
+
+            # Add minimum p-values and q-values to DataFrame
+            results[
+                [
+                    "Enrichment P-value",
+                    "Enrichment Q-value",
+                    "Depletion P-value",
+                    "Depletion Q-value",
+                ]
+            ] = results.apply(
+                lambda row: self._get_significance_values(
+                    row["Domain ID"],
+                    row["Annotation"],
+                    enrichment_pvals,
+                    depletion_pvals,
+                    enrichment_qvals,
+                    depletion_qvals,
+                ),
+                axis=1,
+                result_type="expand",
+            )
+            # Add matched annotation members and their counts
+            results["Matched Members"] = results["Annotation"].apply(
+                lambda desc: self._get_annotation_members(desc)
+            )
+            results["Matched Count"] = results["Matched Members"].apply(
+                lambda x: len(x.split(";")) if x else 0
+            )
+        else:
+            # Initialize expected columns to keep downstream merge stable
+            results = pd.DataFrame(
+                columns=[
+                    "Domain ID",
+                    "Annotation",
+                    "Summed Significance Score",
+                    "Matched Members",
+                    "Matched Count",
+                    "Enrichment P-value",
+                    "Enrichment Q-value",
+                    "Depletion P-value",
+                    "Depletion Q-value",
+                ]
+            )
 
         # Drop the "Summed Significance Score" column before reordering and returning
         results = results.drop(columns=["Summed Significance Score"])

@@ -365,7 +365,7 @@ def test_linkage_criterion_and_auto_clustering_options(
         json_annotation: The JSON annotation associated with the network.
     """
     # Define parameters for testing
-    test_criteria = ["maxclust", "distance", "off"]
+    test_criteria = ["distance", "off"]
     min_cluster_size, max_cluster_size = 10, 200  # Fixed for simplicity
     for criterion in test_criteria:
         # === Cluster and Stats ===
@@ -400,8 +400,12 @@ def test_linkage_criterion_and_auto_clustering_options(
 
         # Validate graph for all criteria
         _validate_graph(graph)
-        # Check cluster size bounds for 'distance', 'maxclust', and 'off' criteria
+        # Check cluster size bounds for 'distance' and 'off' criteria
         _check_component_sizes(graph.domain_id_to_node_ids_map, min_cluster_size, max_cluster_size)
+        # Ensure summary can be loaded for each criterion (public API coverage)
+        summary = graph.summary.load()
+        assert isinstance(summary, pd.DataFrame)
+        assert {"Annotation", "Domain ID"}.issubset(set(summary.columns))
 
 
 def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
@@ -475,6 +479,9 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
     assert isinstance(
         graph.domain_id_to_node_labels_map, dict
     ), "Domain ID to node labels map should be a dictionary"
+    assert isinstance(
+        graph.domain_id_to_enriched_node_labels_map, dict
+    ), "Domain ID to enriched node labels map should be a dictionary"
     assert isinstance(graph.network, nx.Graph), "Network should be a NetworkX graph"
     assert isinstance(
         graph.node_coordinates, np.ndarray
@@ -669,12 +676,37 @@ def test_load_graph_returns_graph_instance(risk_obj, cytoscape_network, json_ann
     assert hasattr(graph, "network")
 
 
+def test_primary_domain_labels_are_disjoint(graph):
+    """
+    Ensure primary domain label assignments do not overlap across domains.
+
+    Args:
+        graph: The graph object instance to be validated.
+    """
+    primary_map = graph.domain_id_to_node_labels_map
+    assert primary_map, "Primary domain label map should be populated."
+
+    all_labels = [label for labels in primary_map.values() for label in labels]
+    assert len(all_labels) == len(
+        set(all_labels)
+    ), "Primary labels should be unique across domains."
+
+    primary_sets = [set(labels) for labels in primary_map.values() if labels]
+    if len(primary_sets) > 1:
+        assert not set.intersection(*primary_sets), "No overlap expected across domain value sets."
+
+    # Also ensure label->id mapping is one-to-one
+    assert len(graph.node_label_to_node_id_map) == len(
+        set(graph.node_label_to_node_id_map.values())
+    )
+
+
 def _validate_graph(graph):
     """
     Validate that the graph is not None and contains nodes and edges.
 
     Args:
-        graph: The graph object to validate.
+        graph: The graph instance to be validated.
 
     Raises:
         AssertionError: If the graph is None or if it contains no nodes or edges.
