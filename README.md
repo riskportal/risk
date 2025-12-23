@@ -46,14 +46,14 @@ We applied RISK to a _Saccharomyces cerevisiae_ protein–protein interaction (P
 
 ## Citation
 
-### Primary citation (paper)
+### Primary citation
 
 **Horecka, I. and Röst, H. (2025)**
 _RISK: a next-generation tool for biological network annotation and visualization_.
 **Bioinformatics**.
 https://doi.org/10.1093/bioinformatics/btaf669
 
-### Software archive (used for publication figures)
+### Software archive
 
 RISK software archive corresponding to the published manuscript.
 Zenodo.
