@@ -154,15 +154,19 @@ def _set_max_row_value_to_one_sparse(matrix: csr_matrix) -> csr_matrix:
 def process_significant_clusters(
     network: nx.Graph,
     significant_clusters: Dict[str, Any],
-    prune_threshold: float = 0.0,
+    display_prune_threshold: float = 0.0,
 ) -> Dict[str, Any]:
     """
-    Process clusters based on the pruning settings.
+    Process clusters based on the display pruning settings.
 
     Args:
         network (nx.Graph): The network data structure used for pruning neighbors.
         significant_clusters (Dict[str, Any]): Dictionary containing 'significance_matrix', 'significant_binary_significance_matrix', and 'significant_significance_matrix'.
-        prune_threshold (float, optional): Distance threshold for pruning neighbors. Defaults to 0.0.
+        display_prune_threshold (float, optional): Display-only pruning based on spatial layout
+            distance that suppresses spatially diffuse or isolated regions in plots. Runs after
+            enrichment and clustering on plotting matrices only, does not use enrichment strength
+            or statistical significance or affect clustering, enrichment, or statistical testing,
+            and defaults to 0.0.
 
     Returns:
         Dict[str, Any]: Processed clusters data, including the updated matrices and significance counts.
@@ -173,8 +177,8 @@ def process_significant_clusters(
     ]
     significant_significance_matrix = significant_clusters["significant_significance_matrix"]
 
-    logger.debug(f"Pruning threshold: {prune_threshold}")
-    if prune_threshold:
+    logger.debug(f"Display prune threshold: {display_prune_threshold}")
+    if display_prune_threshold:
         (
             significance_matrix,
             significant_binary_significance_matrix,
@@ -183,7 +187,7 @@ def process_significant_clusters(
             network,
             significance_matrix,
             significant_binary_significance_matrix,
-            distance_threshold=prune_threshold,
+            distance_threshold=display_prune_threshold,
         )
 
     cluster_significance_counts = np.sum(significant_binary_significance_matrix, axis=0)

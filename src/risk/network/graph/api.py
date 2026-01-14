@@ -35,7 +35,7 @@ class GraphAPI:
         tail: str = "right",
         pval_cutoff: float = 0.01,
         fdr_cutoff: float = 0.9999,
-        prune_threshold: float = 0.0,
+        display_prune_threshold: float = 0.0,
         linkage_criterion: str = "distance",
         linkage_method: str = "average",
         linkage_metric: str = "yule",
@@ -53,7 +53,11 @@ class GraphAPI:
             tail (str, optional): Type of significance tail ("right", "left", "both"). Defaults to "right".
             pval_cutoff (float, optional): p-value cutoff for significance. Defaults to 0.01.
             fdr_cutoff (float, optional): FDR cutoff for significance. Defaults to 0.9999.
-            prune_threshold (float, optional): Distance threshold for pruning neighbors. Defaults to 0.0.
+            display_prune_threshold (float, optional): Display-only pruning based on spatial layout
+                distance that suppresses spatially diffuse or isolated regions in plots. Runs
+                after enrichment and clustering on plotting matrices only, does not use
+                enrichment strength or statistical significance or affect clustering, enrichment,
+                or statistical testing, and defaults to 0.0.
             linkage_criterion (str, optional): Clustering criterion for defining domains. Defaults to "distance".
             linkage_method (str, optional): Clustering method to use. Choose "auto" to optimize. Defaults to "average".
             linkage_metric (str, optional): Metric to use for calculating distances. Choose "auto" to optimize.
@@ -72,7 +76,7 @@ class GraphAPI:
             tail=tail,
             pval_cutoff=pval_cutoff,
             fdr_cutoff=fdr_cutoff,
-            prune_threshold=prune_threshold,
+            display_prune_threshold=display_prune_threshold,
             linkage_criterion=linkage_criterion,
             linkage_method=linkage_method,
             linkage_metric=linkage_metric,
@@ -99,11 +103,11 @@ class GraphAPI:
         )
 
         log_header("Processing significant clusters")
-        # Process significant clusters by pruning based on the given settings
+        # Process significant clusters for layout-based display pruning
         processed_clusters = process_significant_clusters(
             network=network,
             significant_clusters=significant_clusters,
-            prune_threshold=prune_threshold,
+            display_prune_threshold=display_prune_threshold,
         )
 
         log_header("Finding top annotations")
