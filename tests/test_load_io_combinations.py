@@ -79,7 +79,7 @@ def test_load_graphs(request, risk_obj, network_fixture, annotation_fixture):
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
-        prune_threshold=0.1,
+        display_prune_threshold=0.1,
         linkage_criterion="distance",
         linkage_method="average",
         linkage_metric="yule",

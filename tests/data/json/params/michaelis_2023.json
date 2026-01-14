@@ -9,7 +9,7 @@
         "pval_cutoff": 0.05,
         "fdr_cutoff": 1.0,
         "impute_depth": 0,
-        "prune_threshold": 0.25,
+        "display_prune_threshold": 0.25,
         "linkage_criterion": "distance",
         "linkage_method": "average",
         "linkage_metric": "yule",
