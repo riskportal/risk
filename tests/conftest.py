@@ -349,7 +349,6 @@ def graph(risk_obj, cytoscape_network, json_annotation):
         tail="right",
         pval_cutoff=0.05,
         fdr_cutoff=1.0,
-        impute_depth=1,
         prune_threshold=0.1,
         linkage_criterion="distance",
         linkage_method="average",
