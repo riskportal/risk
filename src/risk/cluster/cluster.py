@@ -11,7 +11,6 @@ import networkx as nx
 import numpy as np
 from scipy.sparse import csr_matrix
 from sklearn.exceptions import DataConversionWarning
-from sklearn.metrics.pairwise import cosine_similarity
 
 from ..log import logger
 from ._community import (
@@ -155,16 +154,14 @@ def _set_max_row_value_to_one_sparse(matrix: csr_matrix) -> csr_matrix:
 def process_significant_clusters(
     network: nx.Graph,
     significant_clusters: Dict[str, Any],
-    impute_depth: int = 0,
     prune_threshold: float = 0.0,
 ) -> Dict[str, Any]:
     """
-    Process clusters based on the imputation and pruning settings.
+    Process clusters based on the pruning settings.
 
     Args:
-        network (nx.Graph): The network data structure used for imputing and pruning neighbors.
+        network (nx.Graph): The network data structure used for pruning neighbors.
         significant_clusters (Dict[str, Any]): Dictionary containing 'significance_matrix', 'significant_binary_significance_matrix', and 'significant_significance_matrix'.
-        impute_depth (int, optional): Depth for imputing neighbors. Defaults to 0.
         prune_threshold (float, optional): Distance threshold for pruning neighbors. Defaults to 0.0.
 
     Returns:
@@ -175,18 +172,6 @@ def process_significant_clusters(
         "significant_binary_significance_matrix"
     ]
     significant_significance_matrix = significant_clusters["significant_significance_matrix"]
-    logger.debug(f"Imputation depth: {impute_depth}")
-    if impute_depth:
-        (
-            significance_matrix,
-            significant_binary_significance_matrix,
-            significant_significance_matrix,
-        ) = _impute_neighbors(
-            network,
-            significance_matrix,
-            significant_binary_significance_matrix,
-            max_depth=impute_depth,
-        )
 
     logger.debug(f"Pruning threshold: {prune_threshold}")
     if prune_threshold:
@@ -210,174 +195,6 @@ def process_significant_clusters(
         "cluster_significance_counts": cluster_significance_counts,
         "node_significance_sums": node_significance_sums,
     }
-
-
-def _impute_neighbors(
-    network: nx.Graph,
-    significance_matrix: np.ndarray,
-    significant_binary_significance_matrix: np.ndarray,
-    max_depth: int = 3,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Impute rows with sums of zero in the significance matrix based on the closest non-zero neighbors in the network graph.
-
-    Args:
-        network (nx.Graph): The network graph with nodes having IDs matching the matrix indices.
-        significance_matrix (np.ndarray): The significance matrix with rows to be imputed.
-        significant_binary_significance_matrix (np.ndarray): The alpha threshold matrix to be imputed similarly.
-        max_depth (int): Maximum depth of nodes to traverse for imputing values.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray, np.ndarray]:
-            - np.ndarray: The imputed significance matrix.
-            - np.ndarray: The imputed alpha threshold matrix.
-            - np.ndarray: The significant significance matrix with non-significant entries set to zero.
-    """
-    # Calculate the distance threshold value based on the shortest distances
-    significance_matrix, significant_binary_significance_matrix = _impute_neighbors_with_similarity(
-        network, significance_matrix, significant_binary_significance_matrix, max_depth=max_depth
-    )
-    # Create a matrix where non-significant entries are set to zero
-    significant_significance_matrix = np.where(
-        significant_binary_significance_matrix == 1, significance_matrix, 0
-    )
-
-    return (
-        significance_matrix,
-        significant_binary_significance_matrix,
-        significant_significance_matrix,
-    )
-
-
-def _impute_neighbors_with_similarity(
-    network: nx.Graph,
-    significance_matrix: np.ndarray,
-    significant_binary_significance_matrix: np.ndarray,
-    max_depth: int = 3,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Impute non-significant nodes based on the closest significant neighbors' profiles and their similarity.
-
-    Args:
-        network (nx.Graph): The network graph with nodes having IDs matching the matrix indices.
-        significance_matrix (np.ndarray): The significance matrix with rows to be imputed.
-        significant_binary_significance_matrix (np.ndarray): The alpha threshold matrix to be imputed similarly.
-        max_depth (int): Maximum depth of nodes to traverse for imputing values.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray]:
-            - The imputed significance matrix.
-            - The imputed alpha threshold matrix.
-    """
-    depth = 1
-    rows_to_impute = np.where(significant_binary_significance_matrix.sum(axis=1) == 0)[0]
-    while len(rows_to_impute) and depth <= max_depth:
-        # Iterate over all significant nodes
-        for row_index in range(significant_binary_significance_matrix.shape[0]):
-            if significant_binary_significance_matrix[row_index].sum() != 0:
-                (
-                    significance_matrix,
-                    significant_binary_significance_matrix,
-                ) = _process_node_imputation(
-                    row_index,
-                    network,
-                    significance_matrix,
-                    significant_binary_significance_matrix,
-                    depth,
-                )
-
-        # Update rows to impute for the next iteration
-        rows_to_impute = np.where(significant_binary_significance_matrix.sum(axis=1) == 0)[0]
-        depth += 1
-
-    return significance_matrix, significant_binary_significance_matrix
-
-
-def _process_node_imputation(
-    row_index: int,
-    network: nx.Graph,
-    significance_matrix: np.ndarray,
-    significant_binary_significance_matrix: np.ndarray,
-    depth: int,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Process the imputation for a single node based on its significant neighbors.
-
-    Args:
-        row_index (int): The index of the significant node being processed.
-        network (nx.Graph): The network graph with nodes having IDs matching the matrix indices.
-        significance_matrix (np.ndarray): The significance matrix with rows to be imputed.
-        significant_binary_significance_matrix (np.ndarray): The alpha threshold matrix to be imputed similarly.
-        depth (int): Current depth for traversal.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: The modified significance matrix and binary threshold matrix.
-    """
-    # Check neighbors at the current depth
-    neighbors = nx.single_source_shortest_path_length(network, row_index, cutoff=depth)
-    # Filter annotated neighbors (already significant)
-    annotated_neighbors = [
-        n
-        for n in neighbors
-        if n != row_index
-        and significant_binary_significance_matrix[n].sum() != 0
-        and significance_matrix[n].sum() != 0
-    ]
-    # Filter non-significant neighbors
-    valid_neighbors = [
-        n
-        for n in neighbors
-        if n != row_index
-        and significant_binary_significance_matrix[n].sum() == 0
-        and significance_matrix[n].sum() == 0
-    ]
-    # If there are valid non-significant neighbors
-    if valid_neighbors and annotated_neighbors:
-        # Calculate distances to annotated neighbors
-        distances_to_annotated = [
-            _get_euclidean_distance(row_index, n, network) for n in annotated_neighbors
-        ]
-        # Calculate the IQR to identify outliers
-        q1, q3 = np.percentile(distances_to_annotated, [25, 75])
-        iqr = q3 - q1
-        lower_bound = q1 - 1.5 * iqr
-        upper_bound = q3 + 1.5 * iqr
-        # Filter valid non-significant neighbors that fall within the IQR bounds
-        valid_neighbors_within_iqr = [
-            n
-            for n in valid_neighbors
-            if lower_bound <= _get_euclidean_distance(row_index, n, network) <= upper_bound
-        ]
-        # If there are any valid neighbors within the IQR
-        if valid_neighbors_within_iqr:
-            # If more than one valid neighbor is within the IQR, compute pairwise cosine similarities
-            if len(valid_neighbors_within_iqr) > 1:
-                # Find the most similar neighbor based on pairwise cosine similarities
-                def sum_pairwise_cosine_similarities(neighbor):
-                    return sum(
-                        cosine_similarity(
-                            significance_matrix[neighbor].reshape(1, -1),
-                            significance_matrix[other_neighbor].reshape(1, -1),
-                        )[0][0]
-                        for other_neighbor in valid_neighbors_within_iqr
-                        if other_neighbor != neighbor
-                    )
-
-                most_similar_neighbor = max(
-                    valid_neighbors_within_iqr, key=sum_pairwise_cosine_similarities
-                )
-            else:
-                most_similar_neighbor = valid_neighbors_within_iqr[0]
-
-            # Impute the most similar non-significant neighbor with the significant node's data, scaled by depth
-            significance_matrix[most_similar_neighbor] = significance_matrix[row_index] / np.sqrt(
-                depth + 1
-            )
-            significant_binary_significance_matrix[most_similar_neighbor] = (
-                significant_binary_significance_matrix[row_index]
-            )
-
-    return significance_matrix, significant_binary_significance_matrix
 
 
 def _prune_neighbors(
