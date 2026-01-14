@@ -6,7 +6,7 @@ graph,tail,right
 graph,pval_cutoff,0.05
 graph,fdr_cutoff,1.0
 graph,impute_depth,0
-graph,prune_threshold,0.25
+graph,display_prune_threshold,0.25
 graph,linkage_criterion,distance
 graph,linkage_method,average
 graph,linkage_metric,yule
