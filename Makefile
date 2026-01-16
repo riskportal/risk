@@ -1,6 +1,6 @@
 # Define Makefile targets for various tasks
 
-black: ## Format Python files using Black
+format: ## Format Python files using Black
 	black --line-length=100 ./
 
 flake8: ## Run Flake8 on all Python files
