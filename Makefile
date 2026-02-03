@@ -1,4 +1,4 @@
-# Define Makefile targets for various tasks
+# RISK Makefile
 
 format: ## Format Python files using Black
 	black --line-length=100 ./
