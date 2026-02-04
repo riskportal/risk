@@ -19,8 +19,8 @@ https://doi.org/10.1093/bioinformatics/btaf669
 
 Full documentation is available at:
 
-- **Docs:** [https://riskportal.github.io/risk-docs](https://riskportal.github.io/risk-docs)
-- **Tutorial Jupyter Notebook Repository:** [https://github.com/riskportal/risk-docs](https://github.com/riskportal/risk-docs)
+- **Docs:** [riskportal.github.io/risk-docs](https://riskportal.github.io/risk-docs)
+- **Tutorial Jupyter Notebook Repository:** [github.com/riskportal/risk-docs](https://github.com/riskportal/risk-docs)
 
 ## Installation
 
