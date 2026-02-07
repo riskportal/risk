@@ -2,7 +2,7 @@
 risk
 ~~~~
 
-RISK: Regional Inference of Significant Kinships
+RISK: a next-generation tool for biological network annotation and visualization
 """
 
 from .risk import RISK
