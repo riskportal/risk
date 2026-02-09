@@ -57,9 +57,9 @@ Bioinformatics. https://doi.org/10.1093/bioinformatics/btaf669
 
 ### Software archive
 
-RISK software archive corresponding to the published manuscript.
-Zenodo.
-https://doi.org/10.5281/zenodo.17257418
+RISK software for the published manuscript.
+<br>
+Zenodo. https://doi.org/10.5281/zenodo.17257418
 
 ## Contributing
 
