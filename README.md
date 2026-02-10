@@ -18,8 +18,6 @@ _Bioinformatics_. https://doi.org/10.1093/bioinformatics/btaf669
 
 ## Documentation and Tutorial
 
-Full documentation is available at:
-
 - **Full Documentation**: [riskportal.github.io/risk-docs](https://riskportal.github.io/risk-docs)
 - **Try in Browser (Binder)**: [![Launch in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riskportal/risk-docs/HEAD?filepath=notebooks/quickstart.ipynb)
 - **Documentation Repository**: [github.com/riskportal/risk-docs](https://github.com/riskportal/risk-docs)
