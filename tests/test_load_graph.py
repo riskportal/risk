@@ -494,6 +494,100 @@ def test_load_graph_summary(graph):
     assert isinstance(summary, pd.DataFrame), "Graph summary should be a DataFrame"
 
 
+def test_summary_reports_raw_and_domain_pq(risk_obj, cytoscape_network, json_annotation):
+    """
+    Ensure summary exposes both raw and domain-conditioned p/q values.
+
+    Raw values must remain invariant across linkage settings; domain-conditioned
+    values are derived as minima within each domain's node set.
+    """
+    clusters = risk_obj.cluster_louvain(
+        network=cytoscape_network,
+        fraction_shortest_edges=0.75,
+        resolution=1.0,
+        random_seed=888,
+    )
+    stats_results = risk_obj.run_binom(
+        annotation=json_annotation,
+        clusters=clusters,
+        null_distribution="network",
+    )
+    common_kwargs = dict(
+        network=cytoscape_network,
+        annotation=json_annotation,
+        stats_results=stats_results,
+        tail="right",
+        pval_cutoff=0.05,
+        fdr_cutoff=1.0,
+        display_prune_threshold=0.0,
+        linkage_method="average",
+        linkage_metric="yule",
+        linkage_threshold=0.2,
+        min_cluster_size=5,
+        max_cluster_size=1000,
+    )
+    graph_distance = risk_obj.load_graph(linkage_criterion="distance", **common_kwargs)
+    graph_off = risk_obj.load_graph(linkage_criterion="off", **common_kwargs)
+    summary_distance = graph_distance.summary.load()
+    summary_off = graph_off.summary.load()
+    expected_columns = {
+        "Raw Enrichment P-value",
+        "Raw Enrichment Q-value",
+        "Raw Depletion P-value",
+        "Raw Depletion Q-value",
+        "Domain Enrichment P-value",
+        "Domain Enrichment Q-value",
+        "Domain Depletion P-value",
+        "Domain Depletion Q-value",
+    }
+
+    assert expected_columns.issubset(set(summary_distance.columns))
+    assert "Enrichment P-value" not in summary_distance.columns
+    assert "Enrichment Q-value" not in summary_distance.columns
+    assert "Depletion P-value" not in summary_distance.columns
+    assert "Depletion Q-value" not in summary_distance.columns
+
+    # Raw p/q values are linkage-invariant by definition.
+    raw_columns = [
+        "Raw Enrichment P-value",
+        "Raw Enrichment Q-value",
+        "Raw Depletion P-value",
+        "Raw Depletion Q-value",
+    ]
+    pd.testing.assert_frame_equal(
+        summary_distance.set_index("Annotation")[raw_columns].sort_index(),
+        summary_off.set_index("Annotation")[raw_columns].sort_index(),
+        check_exact=False,
+        atol=1e-12,
+        rtol=0.0,
+    )
+    # Domain p-value is the minimum over that domain's nodes for the given term.
+    assigned = summary_distance[summary_distance["Domain ID"] != -1]
+    if assigned.empty:
+        pytest.skip("No assigned domains available to validate domain-conditioned minima.")
+
+    first_row = assigned.iloc[0]
+    annotation_idx = json_annotation["ordered_annotation"].index(first_row["Annotation"])
+    domain_node_indices = graph_distance.domain_id_to_node_ids_map[first_row["Domain ID"]]
+    expected_domain_enrichment_p = np.min(
+        stats_results["enrichment_pvals"][domain_node_indices, annotation_idx]
+    )
+    expected_raw_enrichment_p = np.min(stats_results["enrichment_pvals"][:, annotation_idx])
+
+    assert np.isclose(
+        first_row["Domain Enrichment P-value"],
+        expected_domain_enrichment_p,
+        atol=1e-12,
+        rtol=0.0,
+    )
+    assert np.isclose(
+        first_row["Raw Enrichment P-value"],
+        expected_raw_enrichment_p,
+        atol=1e-12,
+        rtol=0.0,
+    )
+
+
 def test_pop_domain(graph):
     """
     Test the pop method for removing a domain ID from all Graph attribute domain mappings.
