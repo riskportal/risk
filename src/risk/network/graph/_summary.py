@@ -85,7 +85,6 @@ class Summary:
         Args:
             filepath (str): The path where the CSV file will be saved.
         """
-        # Load results and export directly to CSV
         results = self.load()
         results.to_csv(filepath, index=False)
         logger.info(f"Analysis summary exported to CSV file: {filepath}")
@@ -97,7 +96,6 @@ class Summary:
         Args:
             filepath (str): The path where the JSON file will be saved.
         """
-        # Load results and export directly to JSON
         results = self.load()
         results.to_json(filepath, orient="records", indent=4)
         logger.info(f"Analysis summary exported to JSON file: {filepath}")
@@ -109,7 +107,6 @@ class Summary:
         Args:
             filepath (str): The path where the text file will be saved.
         """
-        # Load results and export directly to text file
         results = self.load()
         with open(filepath, "w", encoding="utf-8") as txt_file:
             txt_file.write(results.to_string(index=False))
@@ -127,84 +124,73 @@ class Summary:
                 - Domain-conditioned p/q values (minimum p/q within nodes belonging to each domain)
         """
         log_header("Loading analysis summary")
-        (
-            enrichment_pvals,
-            depletion_pvals,
-            enrichment_qvals,
-            depletion_qvals,
-        ) = self._compute_significance_matrices()
-        ordered_annotation = pd.DataFrame(
-            {self._ANNOTATION_COLUMN: self.annotation["ordered_annotation"]}
-        )
-        raw_results = self._build_raw_results(
-            enrichment_pvals=enrichment_pvals,
-            depletion_pvals=depletion_pvals,
-            enrichment_qvals=enrichment_qvals,
-            depletion_qvals=depletion_qvals,
-        )
-        domain_results = self._build_domain_results(
-            enrichment_pvals=enrichment_pvals,
-            depletion_pvals=depletion_pvals,
-            enrichment_qvals=enrichment_qvals,
-            depletion_qvals=depletion_qvals,
-        )
-        return self._merge_and_finalize_results(
-            ordered_annotation=ordered_annotation,
-            raw_results=raw_results,
-            domain_results=domain_results,
-        )
-
-    def _compute_significance_matrices(
-        self,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Extract p-value matrices and compute their row-wise BH-corrected q-values.
-
-        Returns:
-            Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-                Enrichment p-values, depletion p-values, enrichment q-values,
-                depletion q-values.
-        """
+        ordered_annotation = tuple(self.annotation["ordered_annotation"])
+        # Cache annotation -> matrix column index for constant-time lookups downstream.
+        annotation_to_idx = {description: idx for idx, description in enumerate(ordered_annotation)}
+        annotation_to_members = self._build_annotation_members_map(annotation_to_idx)
         enrichment_pvals = self.stats_results["enrichment_pvals"]
         depletion_pvals = self.stats_results["depletion_pvals"]
         enrichment_qvals = self._calculate_qvalues(enrichment_pvals)
         depletion_qvals = self._calculate_qvalues(depletion_pvals)
-        return enrichment_pvals, depletion_pvals, enrichment_qvals, depletion_qvals
-
-    def _build_raw_results(
-        self,
-        enrichment_pvals: np.ndarray,
-        depletion_pvals: np.ndarray,
-        enrichment_qvals: np.ndarray,
-        depletion_qvals: np.ndarray,
-    ) -> pd.DataFrame:
-        """
-        Build raw (ungrouped) per-annotation statistics from full matrices.
-
-        Raw values are invariant to linkage/domain grouping and represent per-term
-        minima across all nodes in the network.
-
-        Args:
-            enrichment_pvals (np.ndarray): Enrichment p-value matrix [node, annotation].
-            depletion_pvals (np.ndarray): Depletion p-value matrix [node, annotation].
-            enrichment_qvals (np.ndarray): Enrichment q-value matrix [node, annotation].
-            depletion_qvals (np.ndarray): Depletion q-value matrix [node, annotation].
-
-        Returns:
-            pd.DataFrame: One row per annotation containing raw p/q summary columns.
-        """
-        return pd.DataFrame(
+        ordered_annotation_frame = pd.DataFrame({self._ANNOTATION_COLUMN: ordered_annotation})
+        # Build linkage-independent raw per-annotation minima across all nodes.
+        raw_results = pd.DataFrame(
             {
-                self._ANNOTATION_COLUMN: self.annotation["ordered_annotation"],
+                self._ANNOTATION_COLUMN: ordered_annotation,
                 "Raw Enrichment P-value": self._min_per_annotation(enrichment_pvals),
                 "Raw Enrichment Q-value": self._min_per_annotation(enrichment_qvals),
                 "Raw Depletion P-value": self._min_per_annotation(depletion_pvals),
                 "Raw Depletion Q-value": self._min_per_annotation(depletion_qvals),
             }
         )
+        domain_results = self._build_domain_results(
+            annotation_to_idx=annotation_to_idx,
+            annotation_to_members=annotation_to_members,
+            enrichment_pvals=enrichment_pvals,
+            depletion_pvals=depletion_pvals,
+            enrichment_qvals=enrichment_qvals,
+            depletion_qvals=depletion_qvals,
+        )
+        return self._merge_and_finalize_results(
+            ordered_annotation=ordered_annotation_frame,
+            raw_results=raw_results,
+            domain_results=domain_results,
+        )
+
+    def _build_annotation_members_map(self, annotation_to_idx: Dict[str, int]) -> Dict[str, str]:
+        """
+        Precompute matched member labels for each annotation from the sparse matrix.
+
+        This method uses CSC column pointers to avoid repeated sparse-column slicing
+        and dense conversions when building summary rows.
+
+        Args:
+            annotation_to_idx (Dict[str, int]): Mapping from annotation label to
+                matrix column index.
+
+        Returns:
+            Dict[str, str]: Mapping from annotation label to ';'-separated members.
+        """
+        annotation_matrix_csc = self.annotation["matrix"].tocsc()
+        members_map = {}
+        # Extract each annotation column once and map member node ids to sorted labels.
+        for description, annotation_idx in annotation_to_idx.items():
+            start = annotation_matrix_csc.indptr[annotation_idx]
+            end = annotation_matrix_csc.indptr[annotation_idx + 1]
+            node_ids = annotation_matrix_csc.indices[start:end]
+            node_labels = sorted(
+                self.graph.node_id_to_node_label_map[node_id]
+                for node_id in node_ids
+                if node_id in self.graph.node_id_to_node_label_map
+            )
+            members_map[description] = ";".join(node_labels)
+
+        return members_map
 
     def _build_domain_results(
         self,
+        annotation_to_idx: Dict[str, int],
+        annotation_to_members: Dict[str, str],
         enrichment_pvals: np.ndarray,
         depletion_pvals: np.ndarray,
         enrichment_qvals: np.ndarray,
@@ -217,6 +203,10 @@ class Summary:
         computed as minima over nodes that belong to that domain.
 
         Args:
+            annotation_to_idx (Dict[str, int]): Mapping from annotation label to
+                matrix column index.
+            annotation_to_members (Dict[str, str]): Precomputed annotation-to-member
+                string mapping.
             enrichment_pvals (np.ndarray): Enrichment p-value matrix [node, annotation].
             depletion_pvals (np.ndarray): Depletion p-value matrix [node, annotation].
             enrichment_qvals (np.ndarray): Enrichment q-value matrix [node, annotation].
@@ -226,6 +216,7 @@ class Summary:
             pd.DataFrame: Domain-level rows with annotation labels, matched members,
                 counts, and domain-conditioned p/q values.
         """
+        # Use score as an internal ordering key while assembling domain rows.
         domain_score_column = "Summed Significance Score"
         domain_rows: List[Dict[str, Union[int, str, float]]] = [
             {
@@ -243,24 +234,28 @@ class Summary:
         if domain_results.empty:
             return pd.DataFrame(columns=self._DOMAIN_RESULT_COLUMNS)
 
+        # Sort deterministically before computing domain-conditioned statistics.
         domain_results = domain_results.sort_values(
             by=["Domain ID", domain_score_column],
             ascending=[True, False],
         ).reset_index(drop=True)
-        domain_results[self._DOMAIN_VALUE_COLUMNS] = domain_results.apply(
-            lambda row: self._get_domain_significance_values(
-                row["Domain ID"],
-                row[self._ANNOTATION_COLUMN],
-                enrichment_pvals,
-                depletion_pvals,
-                enrichment_qvals,
-                depletion_qvals,
-            ),
-            axis=1,
-            result_type="expand",
+        domain_results[self._DOMAIN_VALUE_COLUMNS] = pd.DataFrame(
+            [
+                self._get_domain_significance_values(
+                    domain_id=row["Domain ID"],
+                    annotation_idx=annotation_to_idx.get(row[self._ANNOTATION_COLUMN]),
+                    enrichment_pvals=enrichment_pvals,
+                    depletion_pvals=depletion_pvals,
+                    enrichment_qvals=enrichment_qvals,
+                    depletion_qvals=depletion_qvals,
+                )
+                for _, row in domain_results.iterrows()
+            ],
+            columns=self._DOMAIN_VALUE_COLUMNS,
+            index=domain_results.index,
         )
-        domain_results["Matched Members"] = domain_results[self._ANNOTATION_COLUMN].apply(
-            self._get_annotation_members
+        domain_results["Matched Members"] = (
+            domain_results[self._ANNOTATION_COLUMN].map(annotation_to_members).fillna("")
         )
         domain_results["Matched Count"] = domain_results["Matched Members"].apply(
             lambda members: len(members.split(";")) if members else 0
@@ -334,7 +329,7 @@ class Summary:
     def _get_domain_significance_values(
         self,
         domain_id: int,
-        description: str,
+        annotation_idx: Union[int, None],
         enrichment_pvals: np.ndarray,
         depletion_pvals: np.ndarray,
         enrichment_qvals: np.ndarray,
@@ -345,7 +340,8 @@ class Summary:
 
         Args:
             domain_id (int): The domain ID associated with the annotation.
-            description (str): The annotation description.
+            annotation_idx (Union[int, None]): Column index of the annotation in
+                the p-value matrices. None indicates missing annotation.
             enrichment_pvals (np.ndarray): Matrix of significance p-values.
             depletion_pvals (np.ndarray): Matrix of depletion p-values.
             enrichment_qvals (np.ndarray): Matrix of significance q-values.
@@ -355,9 +351,7 @@ class Summary:
             Tuple[Union[float, None], Union[float, None], Union[float, None], Union[float, None]]:
                 Minimum enrichment p, enrichment q, depletion p, and depletion q within domain nodes.
         """
-        try:
-            annotation_idx = self.annotation["ordered_annotation"].index(description)
-        except ValueError:
+        if annotation_idx is None:
             return None, None, None, None  # Description not found
 
         node_indices = self.graph.domain_id_to_node_ids_map.get(domain_id, [])
@@ -375,31 +369,3 @@ class Summary:
             np.min(dep_p) if dep_p.size > 0 else None,
             np.min(dep_q) if dep_q.size > 0 else None,
         )
-
-    def _get_annotation_members(self, description: str) -> str:
-        """
-        Retrieve node labels associated with a given annotation description.
-
-        Args:
-            description (str): The annotation description.
-
-        Returns:
-            str: ';'-separated string of node labels that are associated with the annotation.
-        """
-        try:
-            annotation_idx = self.annotation["ordered_annotation"].index(description)
-        except ValueError:
-            return ""  # Description not found
-
-        # Get the column (safely) from the sparse matrix
-        column = self.annotation["matrix"][:, annotation_idx]
-        # Convert the column to a dense array if needed
-        column = column.toarray().ravel()  # Convert to a 1D dense array
-        # Get nodes present for the annotation and sort by node label - use np.where on the dense array
-        nodes_present = np.where(column == 1)[0]
-        node_labels = sorted(
-            self.graph.node_id_to_node_label_map[node_id]
-            for node_id in nodes_present
-            if node_id in self.graph.node_id_to_node_label_map
-        )
-        return ";".join(node_labels)
