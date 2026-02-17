@@ -606,7 +606,6 @@ def test_off_criterion_bypasses_invalid_options(risk_obj, cytoscape_network, jso
         clusters=clusters,
         null_distribution="network",
     )
-
     graph = risk_obj.load_graph(
         network=cytoscape_network,
         annotation=json_annotation,
@@ -624,6 +623,53 @@ def test_off_criterion_bypasses_invalid_options(risk_obj, cytoscape_network, jso
     )
 
     _validate_graph(graph)
+
+
+def test_left_tail_assigns_domains_when_significance_exists(
+    risk_obj, cytoscape_network, json_annotation
+):
+    """
+    Ensure left-tail analysis can still assign domains when depletion signal exists.
+
+    Args:
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
+        json_annotation: The JSON annotation associated with the network.
+    """
+    clusters = risk_obj.cluster_louvain(
+        network=cytoscape_network,
+        fraction_shortest_edges=0.75,
+        resolution=1.0,
+        random_seed=888,
+    )
+    stats_results = risk_obj.run_binom(
+        annotation=json_annotation,
+        clusters=clusters,
+        null_distribution="network",
+    )
+    graph = risk_obj.load_graph(
+        network=cytoscape_network,
+        annotation=json_annotation,
+        stats_results=stats_results,
+        tail="left",
+        pval_cutoff=0.5,
+        fdr_cutoff=1.0,
+        display_prune_threshold=0.0,
+        linkage_criterion="off",
+        linkage_method="average",
+        linkage_metric="yule",
+        linkage_threshold=0.2,
+        min_cluster_size=5,
+        max_cluster_size=1000,
+    )
+
+    # Verify that depletion-driven significance exists and can map to domains.
+    assert np.sum(graph.node_significance_sums != 0) > 0
+    assert len(graph.domain_id_to_node_ids_map) > 0
+    assert len(graph.node_id_to_domain_ids_and_significance_map) > 0
+    assert any(
+        len(v["domains"]) > 0 for v in graph.node_id_to_domain_ids_and_significance_map.values()
+    )
 
 
 def test_load_graph_returns_graph_instance(risk_obj, cytoscape_network, json_annotation):
@@ -661,6 +707,7 @@ def test_load_graph_returns_graph_instance(risk_obj, cytoscape_network, json_ann
         min_cluster_size=5,
         max_cluster_size=1000,
     )
+
     assert graph is not None
     assert hasattr(graph, "network")
 

@@ -17,14 +17,16 @@ from risk.annotation import get_weighted_description
 
 from ..log import logger
 
-# Define constants for clustering
+# Keep candidates in deterministic order so auto-optimization is stable across processes.
 # fmt: off
-LINKAGE_METHODS = {"single", "complete", "average", "weighted", "centroid", "median", "ward"}
-LINKAGE_METRICS = {
+LINKAGE_METHODS = tuple(sorted({
+    "single", "complete", "average", "weighted", "centroid", "median", "ward"
+}))
+LINKAGE_METRICS = tuple(sorted({
     "braycurtis", "canberra", "chebyshev", "cityblock", "correlation", "cosine", "dice", "euclidean",
     "hamming", "jaccard", "jensenshannon", "kulczynski1", "mahalanobis", "matching", "minkowski",
     "rogerstanimoto", "russellrao", "seuclidean", "sokalmichener", "sokalsneath", "sqeuclidean", "yule",
-}
+}))
 # fmt: on
 
 
@@ -113,14 +115,16 @@ def define_domains(
     )
     node_to_domain = node_to_significance.T.groupby(level="domain").sum().T
 
-    # Find the maximum significance score for each node
-    t_max = node_to_domain.loc[:, 1:].max(axis=1)
-    t_idxmax = node_to_domain.loc[:, 1:].idxmax(axis=1)
-    t_idxmax[t_max == 0] = 0
+    # Find the dominant domain per node using absolute significance:
+    # right-tail scores are positive while left-tail scores are negative.
+    domain_signal = node_to_domain.loc[:, 1:]
+    t_abs_max = domain_signal.abs().max(axis=1)
+    t_idxmax = domain_signal.abs().idxmax(axis=1)
+    t_idxmax[t_abs_max == 0] = 0
 
-    # Assign all domains where the score is greater than 0
-    node_to_domain["all_domains"] = node_to_domain.loc[:, 1:].apply(
-        lambda row: list(row[row > 0].index), axis=1
+    # Assign all domains where the node has any non-zero significance, regardless of sign.
+    node_to_domain["all_domains"] = domain_signal.apply(
+        lambda row: list(row[row.abs() > 0].index), axis=1
     )
     # Assign primary domain
     node_to_domain["primary_domain"] = t_idxmax
@@ -340,7 +344,18 @@ def _optimize_silhouette_across_linkage_and_metrics(
         except (ValueError, LinAlgError):
             continue  # Skip to the next combination
 
-        if score > best_overall_score:
+        is_better_score = score > best_overall_score
+        is_tied_score = (
+            np.isfinite(score)
+            and np.isfinite(best_overall_score)
+            and np.isclose(score, best_overall_score, rtol=0.0, atol=1e-12)
+        )
+        is_better_tie_break = (method, metric, float(current_threshold)) < (
+            best_overall_method,
+            best_overall_metric,
+            float(best_overall_threshold),
+        )
+        if is_better_score or (is_tied_score and is_better_tie_break):
             best_overall_score = score
             best_overall_threshold = float(current_threshold)  # Ensure it's a float
             best_overall_method = method

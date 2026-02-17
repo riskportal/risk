@@ -208,8 +208,8 @@ class Graph:
         ]  # The last two columns are 'all domains' and 'primary domain'
         # Iterate over each row in the dataframe
         for idx, row in domains.iterrows():
-            # Get the domains (column names) where the significance score is greater than 0
-            all_domains = domain_columns[row[domain_columns] > 0].tolist()
+            # Treat both positive (enrichment) and negative (depletion) as significant domain signal.
+            all_domains = domain_columns[row[domain_columns].abs() > 0].tolist()
             # Get the significance values for those domains
             significance_values = row[all_domains].to_dict()
             # Store the result in the dictionary with index as the key
