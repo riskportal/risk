@@ -58,6 +58,35 @@ def test_load_network_cytoscape(risk_obj, data_path):
     assert len(network.edges) > 0  # Check that the network has edges
 
 
+def test_load_network_cytoscape_nested_alias_resolution(risk_obj, data_path):
+    """
+    Test loading a Cytoscape network where edge endpoints require alias resolution.
+    The luck_2020_brain_cerebellum session stores edge endpoints as numeric IDs while
+    the active view uses ENSG labels. The loader should resolve aliases and load without
+    crashing.
+
+    Args:
+        risk_obj: The RISK object instance used for loading the network.
+        data_path: The base path to the directory containing the Cytoscape file.
+    """
+    cys_file = data_path / "cytoscape" / "luck_2020_brain_cerebellum.cys"
+    network = risk_obj.load_network_cytoscape(
+        filepath=str(cys_file), source_label="source", target_label="target", view_name=""
+    )
+
+    assert network is not None
+    assert len(network.nodes) > 0
+    assert len(network.edges) > 0
+
+    labels = [attrs["label"] for _, attrs in network.nodes(data=True)]
+    assert any(
+        isinstance(label, str) and label.startswith("ENSG") for label in labels
+    ), "Expected ENSG labels from the active view."
+    assert not any(
+        isinstance(label, str) and label.isdigit() for label in labels
+    ), "Node labels should resolve to view labels, not numeric edge IDs."
+
+
 def test_load_network_cyjs(risk_obj, data_path):
     """
     Test loading a Cytoscape JSON network from a .cyjs file.
