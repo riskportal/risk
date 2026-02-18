@@ -77,36 +77,71 @@ def define_domains(
                 "and assigns domains directly from raw enrichment values. "
                 "Alternatively, consider relaxing `pval_cutoff`/`fdr_cutoff` or reviewing annotation coverage."
             )
+        significant_annotation_ids = top_annotation.index[significant_mask].tolist()
         m = significant_clusters_significance[:, significant_mask].T
-        # Safeguard the matrix by replacing NaN, Inf, and -Inf values
-        m = _safeguard_matrix(m)
-        try:
-            # Optimize silhouette score across different linkage methods and metrics
-            (
-                best_linkage,
-                best_metric,
-                best_threshold,
-            ) = _optimize_silhouette_across_linkage_and_metrics(
-                m, linkage_criterion, linkage_method, linkage_metric, linkage_threshold
+        # Clean matrix values and keep a row mask to preserve annotation-domain alignment.
+        m, kept_rows_mask = _safeguard_matrix(m)
+        if len(significant_annotation_ids) != len(kept_rows_mask):
+            raise ValueError(
+                "Annotation row mapping mismatch: significant annotation ids and keep mask length differ."
             )
-            # Perform hierarchical clustering
-            Z = linkage(m, method=best_linkage, metric=best_metric)
+        kept_annotation_ids = [
+            annotation_id
+            for annotation_id, keep in zip(significant_annotation_ids, kept_rows_mask)
+            if keep
+        ]
+        dropped_annotation_ids = [
+            annotation_id
+            for annotation_id, keep in zip(significant_annotation_ids, kept_rows_mask)
+            if not keep
+        ]
+
+        top_annotation["domain"] = 0
+        next_domain_id = 1
+        if kept_annotation_ids:
+            try:
+                # Optimize silhouette score across different linkage methods and metrics
+                (
+                    best_linkage,
+                    best_metric,
+                    best_threshold,
+                ) = _optimize_silhouette_across_linkage_and_metrics(
+                    m, linkage_criterion, linkage_method, linkage_metric, linkage_threshold
+                )
+                # Perform hierarchical clustering
+                Z = linkage(m, method=best_linkage, metric=best_metric)
+                logger.warning(
+                    f"Linkage criterion: '{linkage_criterion}'\nLinkage method: '{best_linkage}'\nLinkage metric: '{best_metric}'\nLinkage threshold: {round(best_threshold, 3)}"
+                )
+                # Calculate the optimal threshold for clustering
+                cut_param = np.max(Z[:, 2]) * best_threshold
+                domains = fcluster(Z, cut_param, criterion=linkage_criterion).astype(int)
+                top_annotation.loc[kept_annotation_ids, "domain"] = domains
+                next_domain_id = int(np.max(domains)) + 1
+            except (LinAlgError, ValueError):
+                # Numerical errors or degenerate input are handled gracefully (not user error)
+                logger.error(
+                    "Clustering failed due to numerical or data degeneracy. Assigning unique domains to significant annotations."
+                )
+                n_kept = len(kept_annotation_ids)
+                top_annotation.loc[kept_annotation_ids, "domain"] = np.arange(
+                    next_domain_id,
+                    next_domain_id + n_kept,
+                    dtype=int,
+                )
+                next_domain_id += n_kept
+
+        if dropped_annotation_ids:
             logger.warning(
-                f"Linkage criterion: '{linkage_criterion}'\nLinkage method: '{best_linkage}'\nLinkage metric: '{best_metric}'\nLinkage threshold: {round(best_threshold, 3)}"
+                f"{len(dropped_annotation_ids)} significant annotations were excluded from linkage due to invalid or zero-variance vectors and were assigned unique domains."
             )
-            # Calculate the optimal threshold for clustering
-            cut_param = np.max(Z[:, 2]) * best_threshold
-            # Assign domains to the annotation matrix
-            domains = fcluster(Z, cut_param, criterion=linkage_criterion)
-            top_annotation["domain"] = 0
-            top_annotation.loc[top_annotation["significant_annotation"], "domain"] = domains
-        except (LinAlgError, ValueError):
-            # Numerical errors or degenerate input are handled gracefully (not user error)
-            n_rows = len(top_annotation)
-            logger.error(
-                "Clustering failed due to numerical or data degeneracy. Assigning unique domains."
+            n_dropped = len(dropped_annotation_ids)
+            top_annotation.loc[dropped_annotation_ids, "domain"] = np.arange(
+                next_domain_id,
+                next_domain_id + n_dropped,
+                dtype=int,
             )
-            top_annotation["domain"] = range(1, n_rows + 1)
+            next_domain_id += n_dropped
 
     # Create DataFrames to store domain information
     node_to_significance = pd.DataFrame(
@@ -253,22 +288,25 @@ def _validate_clustering_args(
     return False
 
 
-def _safeguard_matrix(matrix: np.ndarray) -> np.ndarray:
+def _safeguard_matrix(matrix: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Safeguard the matrix by replacing NaN, Inf, and -Inf values.
+    Safeguard the matrix by replacing NaN/Inf values and dropping zero-variance rows.
 
     Args:
         matrix (np.ndarray): Data matrix.
 
     Returns:
-        np.ndarray: Safeguarded data matrix.
+        Tuple[np.ndarray, np.ndarray]:
+            - Safeguarded matrix with only non-zero-variance rows.
+            - Boolean keep mask aligned to the original row order.
     """
+    n_rows = matrix.shape[0]
     # Safety guard: handle empty or invalid matrices
     if matrix.size == 0 or not np.isfinite(matrix).any():
         logger.warning(
-            "Input matrix is empty or contains no finite values. Returning a zero matrix of same shape."
+            "Input matrix is empty or contains no finite values. Returning an empty matrix."
         )
-        return np.zeros(matrix.shape, dtype=float)
+        return np.empty((0, matrix.shape[1]), dtype=float), np.zeros(n_rows, dtype=bool)
     # Replace NaN with column mean
     nan_replacement = np.nanmean(matrix, axis=0)
     matrix = np.where(np.isnan(matrix), nan_replacement, matrix)
@@ -277,10 +315,10 @@ def _safeguard_matrix(matrix: np.ndarray) -> np.ndarray:
     finite_min = np.nanmin(matrix[np.isfinite(matrix)])
     matrix = np.where(np.isposinf(matrix), finite_max, matrix)
     matrix = np.where(np.isneginf(matrix), finite_min, matrix)
-    # Ensure rows have non-zero variance (optional step)
-    row_variance = np.var(matrix, axis=1)
-    matrix = matrix[row_variance > 0]
-    return matrix
+    # Keep only rows that can contribute to distance-based linkage.
+    kept_rows_mask = np.var(matrix, axis=1) > 0
+    matrix = matrix[kept_rows_mask]
+    return matrix, kept_rows_mask
 
 
 def _optimize_silhouette_across_linkage_and_metrics(

@@ -868,10 +868,8 @@ class NetworkIO:
         # Extract x, y coordinates as a NumPy array
         nodes = list(G.nodes)
         xy_coords = np.array([[G.nodes[node]["x"], G.nodes[node]["y"]] for node in nodes])
-        # Normalize coordinates between [0, 1]
-        min_vals = xy_coords.min(axis=0)
-        max_vals = xy_coords.max(axis=0)
-        normalized_xy = (xy_coords - min_vals) / (max_vals - min_vals)
+        # Normalize coordinates between [0, 1] with zero-range safeguards.
+        normalized_xy = self._safe_min_max_normalize(xy_coords)
         # Convert normalized coordinates to spherical coordinates
         theta = normalized_xy[:, 0] * np.pi * 2
         phi = normalized_xy[:, 1] * np.pi
@@ -892,14 +890,41 @@ class NetworkIO:
         """
         # Extract x, y coordinates from the graph nodes
         xy_coords = np.array([[G.nodes[node]["x"], G.nodes[node]["y"]] for node in G.nodes()])
-        # Calculate min and max values for x and y
-        min_vals = np.min(xy_coords, axis=0)
-        max_vals = np.max(xy_coords, axis=0)
-        # Normalize the coordinates to [0, 1]
-        normalized_xy = (xy_coords - min_vals) / (max_vals - min_vals)
+        # Normalize coordinates to [0, 1] with zero-range safeguards.
+        normalized_xy = self._safe_min_max_normalize(xy_coords)
         # Update the node coordinates with the normalized values
         for i, node in enumerate(G.nodes()):
             G.nodes[node]["x"], G.nodes[node]["y"] = normalized_xy[i]
+
+    def _safe_min_max_normalize(
+        self, xy_coords: np.ndarray, zero_range_fill: float = 0.5
+    ) -> np.ndarray:
+        """
+        Normalize 2D coordinates to [0, 1] while avoiding divide-by-zero for flat axes.
+
+        Args:
+            xy_coords (np.ndarray): Coordinate array of shape (n_nodes, 2).
+            zero_range_fill (float, optional): Fill value used when an axis has zero range.
+                Defaults to 0.5 (center of the normalized interval).
+
+        Returns:
+            np.ndarray: Normalized coordinates with finite values.
+        """
+        if xy_coords.size == 0:
+            return np.empty_like(xy_coords, dtype=float)
+
+        min_vals = np.min(xy_coords, axis=0)
+        max_vals = np.max(xy_coords, axis=0)
+        ranges = max_vals - min_vals
+        zero_range_mask = np.isclose(ranges, 0.0)
+        safe_ranges = ranges.copy()
+        safe_ranges[zero_range_mask] = 1.0
+
+        normalized_xy = (xy_coords - min_vals) / safe_ranges
+        if np.any(zero_range_mask):
+            normalized_xy[:, zero_range_mask] = zero_range_fill
+
+        return normalized_xy
 
     def _create_depth(self, G: nx.Graph, surface_depth: float = 0.0) -> nx.Graph:
         """
