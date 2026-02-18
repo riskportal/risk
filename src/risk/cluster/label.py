@@ -146,7 +146,10 @@ def define_domains(
     # Create DataFrames to store domain information
     node_to_significance = pd.DataFrame(
         data=significant_clusters_significance,
-        columns=[top_annotation.index.values, top_annotation["domain"]],
+        columns=pd.MultiIndex.from_arrays(
+            [top_annotation.index.values, top_annotation["domain"]],
+            names=["annotation", "domain"],
+        ),
     )
     node_to_domain = node_to_significance.T.groupby(level="domain").sum().T
 
