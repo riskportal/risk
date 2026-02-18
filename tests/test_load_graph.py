@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from risk.cluster import define_domains
 from risk.network.graph._summary import Summary
 
 
@@ -829,6 +830,49 @@ def test_primary_domain_labels_are_disjoint(graph):
     assert len(graph.node_label_to_node_id_map) == len(
         set(graph.node_label_to_node_id_map.values())
     )
+
+
+def test_define_domains_handles_safeguard_row_drop_without_global_fallback():
+    """
+    Ensure dropped linkage rows do not desynchronize annotation-domain assignment.
+    A zero-variance significant annotation should be assigned a deterministic unique
+    domain, while non-significant annotations remain unassigned (domain 0).
+    """
+    # Two significant annotations: one degenerate (zero-variance) and one clusterable.
+    top_annotation = pd.DataFrame(
+        {
+            "significant_annotation": [True, True, False],
+            "full_terms": ["term_a", "term_b", "term_c"],
+            "significant_cluster_significance_sums": [1.0, 2.0, 0.0],
+            "significant_significance_score": [1.0, 2.0, 0.0],
+        },
+        index=["term_a", "term_b", "term_c"],
+    )
+    # term_a is dropped by safeguard (constant column), term_b is retained, term_c is non-significant.
+    significant_clusters_significance = np.array(
+        [
+            [5.0, 1.0, 0.0],
+            [5.0, 2.0, 0.0],
+            [5.0, 3.0, 0.0],
+            [5.0, 4.0, 0.0],
+        ],
+        dtype=float,
+    )
+
+    domains = define_domains(
+        top_annotation=top_annotation,
+        significant_clusters_significance=significant_clusters_significance,
+        linkage_criterion="distance",
+        linkage_method="average",
+        linkage_metric="euclidean",
+        linkage_threshold=0.2,
+    )
+
+    assert top_annotation.loc["term_c", "domain"] == 0
+    assert top_annotation.loc["term_a", "domain"] > 0
+    assert top_annotation.loc["term_b", "domain"] > 0
+    assert top_annotation.loc["term_a", "domain"] != top_annotation.loc["term_b", "domain"]
+    assert (domains["primary_domain"] > 0).any()
 
 
 def _validate_graph(graph):
