@@ -497,10 +497,9 @@ def test_load_graph_summary(graph):
 
 def test_summary_reports_raw_and_domain_pq(risk_obj, cytoscape_network, json_annotation):
     """
-    Ensure summary exposes both raw and domain-conditioned p/q values.
-
-    Raw values must remain invariant across linkage settings; domain-conditioned
-    values are derived as minima within each domain's node set.
+    Ensure summary exposes both raw and domain-conditioned p/q values. Raw values must remain
+    invariant across linkage settings; domain-conditioned values are derived as minima within each
+    domain's node set.
     """
     clusters = risk_obj.cluster_louvain(
         network=cytoscape_network,
@@ -596,6 +595,18 @@ def test_pop_domain(graph):
     Args:
         graph: The graph object instance with existing domain mappings.
     """
+    # Cache should be deterministic and caller-safe before graph mutation.
+    initial_summary = graph.summary.load()
+    cached_summary = graph.summary.load()
+    pd.testing.assert_frame_equal(
+        initial_summary,
+        cached_summary,
+        check_exact=False,
+        atol=1e-12,
+        rtol=0.0,
+    )
+    assert initial_summary is not cached_summary
+
     # Define the domain ID to be removed
     domain_id_to_remove = 1
     # Retrieve expected labels before popping
@@ -627,6 +638,10 @@ def test_pop_domain(graph):
         assert domain_id_to_remove not in domain_info.get(
             "significances", {}
         ), f"{domain_id_to_remove} should be removed from node_id_to_domain_ids_and_significance_map['significances']"
+
+    # Finally, check that the summary no longer contains the removed domain ID
+    refreshed_summary = graph.summary.load()
+    assert domain_id_to_remove not in set(refreshed_summary["Domain ID"])
 
 
 @pytest.mark.parametrize(
