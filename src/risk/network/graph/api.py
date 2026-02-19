@@ -24,7 +24,8 @@ class GraphAPI:
     """
     Handles the loading of network graphs and associated data.
 
-    The GraphAPI class provides methods to load and process network graphs, annotations, and cluster results.
+    The GraphAPI class provides methods to load and process network graphs, annotations, and
+    cluster results.
     """
 
     def load_graph(

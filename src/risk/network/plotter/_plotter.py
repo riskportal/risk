@@ -21,8 +21,8 @@ class Plotter(Canvas, Network, Contour, Labels):
     """
     A class for visualizing network graphs with customizable options.
 
-    The Plotter class uses a Graph object and provides methods to plot the network with
-    flexible node and edge properties. It also supports plotting labels, contours, drawing the network's
+    The Plotter class uses a Graph object and provides methods to plot the network with flexible
+    node and edge properties. It also supports plotting labels, contours, drawing the network's
     perimeter, and adjusting background colors.
     """
 

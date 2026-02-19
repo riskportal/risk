@@ -30,10 +30,10 @@ class MockLogger:
     """
     MockLogger: A lightweight logger replacement using print statements in Jupyter.
 
-    The MockLogger class replicates the behavior of a standard logger using print statements
-    to display messages. This is primarily used in a Jupyter environment to show outputs
-    directly in the notebook. The class supports logging levels such as `info`, `debug`,
-    `warning`, and `error`, while the `verbose` attribute controls whether to display non-error messages.
+    The MockLogger class replicates the behavior of a standard logger using print statements to
+    display messages. This is primarily used in a Jupyter environment to show outputs directly
+    in the notebook. The class supports logging levels such as `info`, `debug`, `warning`, and
+    `error`, while the `verbose` attribute controls whether to display non-error messages.
     """
 
     def __init__(self, verbose: bool = True):
