@@ -58,9 +58,10 @@ def calculate_significance_matrices(
         )
         enrichment_matrix = enrichment_pvals
 
-    # Apply a negative log10 transformation for visualization purposes
-    log_depletion_matrix = -np.log10(depletion_matrix)
-    log_enrichment_matrix = -np.log10(enrichment_matrix)
+    # Floor exact zeros to avoid infinities from -log10(0) in downstream magnitude scaling.
+    p_floor = np.finfo(float).eps
+    log_depletion_matrix = -np.log10(np.clip(depletion_matrix, p_floor, 1.0))
+    log_enrichment_matrix = -np.log10(np.clip(enrichment_matrix, p_floor, 1.0))
 
     # Select the appropriate significance matrices based on the specified tail
     significance_matrix, significant_binary_significance_matrix = _select_significance_matrices(

@@ -34,7 +34,7 @@ class Canvas:
         subtitle: Union[str, None] = None,
         title_fontsize: int = 20,
         subtitle_fontsize: int = 14,
-        font: str = "Arial",
+        font: str = "DejaVu Sans",
         title_color: Union[str, List, Tuple, np.ndarray] = "black",
         subtitle_color: Union[str, List, Tuple, np.ndarray] = "gray",
         title_x: float = 0.5,
@@ -50,7 +50,7 @@ class Canvas:
             subtitle (str, optional): Subtitle of the plot. Defaults to None.
             title_fontsize (int, optional): Font size for the title. Defaults to 20.
             subtitle_fontsize (int, optional): Font size for the subtitle. Defaults to 14.
-            font (str, optional): Font family used for both title and subtitle. Defaults to "Arial".
+            font (str, optional): Font family used for both title and subtitle. Defaults to "DejaVu Sans".
             title_color (str, List, Tuple, or np.ndarray, optional): Color of the title text. Can be a string or an array of colors.
                 Defaults to "black".
             subtitle_color (str, List, Tuple, or np.ndarray, optional): Color of the subtitle text. Can be a string or an array of colors.

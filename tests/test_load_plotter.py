@@ -44,7 +44,7 @@ def plot_title(plotter):
             subtitle="Michaelis et al., 2023",
             title_fontsize=20,
             subtitle_fontsize=14,
-            font="Arial",
+            font="DejaVu Sans",
             title_color="black",
             subtitle_color="gray",
             title_x=0.5,
@@ -230,7 +230,7 @@ def plot_labels(plotter):
         plotter.plot_labels(
             scale=1.25,
             offset=0.10,
-            font="Arial",
+            font="DejaVu Sans",
             fontcase={"lower": "title"},
             fontsize=10,
             fontcolor=plotter.get_annotated_label_colors(
@@ -282,7 +282,7 @@ def plot_sublabel(plotter):
             radial_position=73,
             scale=1.6,
             offset=0.10,
-            font="Arial",
+            font="DejaVu Sans",
             fontsize=14,
             fontcolor="white",
             arrow_linewidth=1.5,
@@ -448,7 +448,7 @@ def test_plot_sublabel(risk_obj, graph):
             0.95,
             0.05,
             0.03,
-            "Arial",
+            "DejaVu Sans",
         ),  # Test case 1
         (
             "Cluster Analysis",
@@ -1097,7 +1097,7 @@ def test_plot_subcontour_with_custom_params(
         (
             1.25,
             0.10,
-            "Arial",
+            "DejaVu Sans",
             None,
             10,
             None,
@@ -1339,7 +1339,7 @@ def test_plot_labels_with_custom_params(
             1.6,
             0.10,
             1.5,
-            "Arial",
+            "DejaVu Sans",
             "->",
             10,
             5,

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from risk.cluster import define_domains
 from risk.network.graph._summary import Summary
 
 
@@ -494,6 +495,100 @@ def test_load_graph_summary(graph):
     assert isinstance(summary, pd.DataFrame), "Graph summary should be a DataFrame"
 
 
+def test_summary_reports_raw_and_domain_pq(risk_obj, cytoscape_network, json_annotation):
+    """
+    Ensure summary exposes both raw and domain-conditioned p/q values.
+
+    Raw values must remain invariant across linkage settings; domain-conditioned
+    values are derived as minima within each domain's node set.
+    """
+    clusters = risk_obj.cluster_louvain(
+        network=cytoscape_network,
+        fraction_shortest_edges=0.75,
+        resolution=1.0,
+        random_seed=888,
+    )
+    stats_results = risk_obj.run_binom(
+        annotation=json_annotation,
+        clusters=clusters,
+        null_distribution="network",
+    )
+    common_kwargs = dict(
+        network=cytoscape_network,
+        annotation=json_annotation,
+        stats_results=stats_results,
+        tail="right",
+        pval_cutoff=0.05,
+        fdr_cutoff=1.0,
+        display_prune_threshold=0.0,
+        linkage_method="average",
+        linkage_metric="yule",
+        linkage_threshold=0.2,
+        min_cluster_size=5,
+        max_cluster_size=1000,
+    )
+    graph_distance = risk_obj.load_graph(linkage_criterion="distance", **common_kwargs)
+    graph_off = risk_obj.load_graph(linkage_criterion="off", **common_kwargs)
+    summary_distance = graph_distance.summary.load()
+    summary_off = graph_off.summary.load()
+    expected_columns = {
+        "Raw Enrichment P-value",
+        "Raw Enrichment Q-value",
+        "Raw Depletion P-value",
+        "Raw Depletion Q-value",
+        "Domain Enrichment P-value",
+        "Domain Enrichment Q-value",
+        "Domain Depletion P-value",
+        "Domain Depletion Q-value",
+    }
+
+    assert expected_columns.issubset(set(summary_distance.columns))
+    assert "Enrichment P-value" not in summary_distance.columns
+    assert "Enrichment Q-value" not in summary_distance.columns
+    assert "Depletion P-value" not in summary_distance.columns
+    assert "Depletion Q-value" not in summary_distance.columns
+
+    # Raw p/q values are linkage-invariant by definition.
+    raw_columns = [
+        "Raw Enrichment P-value",
+        "Raw Enrichment Q-value",
+        "Raw Depletion P-value",
+        "Raw Depletion Q-value",
+    ]
+    pd.testing.assert_frame_equal(
+        summary_distance.set_index("Annotation")[raw_columns].sort_index(),
+        summary_off.set_index("Annotation")[raw_columns].sort_index(),
+        check_exact=False,
+        atol=1e-12,
+        rtol=0.0,
+    )
+    # Domain p-value is the minimum over that domain's nodes for the given term.
+    assigned = summary_distance[summary_distance["Domain ID"] != -1]
+    if assigned.empty:
+        pytest.skip("No assigned domains available to validate domain-conditioned minima.")
+
+    first_row = assigned.iloc[0]
+    annotation_idx = json_annotation["ordered_annotation"].index(first_row["Annotation"])
+    domain_node_indices = graph_distance.domain_id_to_node_ids_map[first_row["Domain ID"]]
+    expected_domain_enrichment_p = np.min(
+        stats_results["enrichment_pvals"][domain_node_indices, annotation_idx]
+    )
+    expected_raw_enrichment_p = np.min(stats_results["enrichment_pvals"][:, annotation_idx])
+
+    assert np.isclose(
+        first_row["Domain Enrichment P-value"],
+        expected_domain_enrichment_p,
+        atol=1e-12,
+        rtol=0.0,
+    )
+    assert np.isclose(
+        first_row["Raw Enrichment P-value"],
+        expected_raw_enrichment_p,
+        atol=1e-12,
+        rtol=0.0,
+    )
+
+
 def test_pop_domain(graph):
     """
     Test the pop method for removing a domain ID from all Graph attribute domain mappings.
@@ -606,7 +701,6 @@ def test_off_criterion_bypasses_invalid_options(risk_obj, cytoscape_network, jso
         clusters=clusters,
         null_distribution="network",
     )
-
     graph = risk_obj.load_graph(
         network=cytoscape_network,
         annotation=json_annotation,
@@ -624,6 +718,53 @@ def test_off_criterion_bypasses_invalid_options(risk_obj, cytoscape_network, jso
     )
 
     _validate_graph(graph)
+
+
+def test_left_tail_assigns_domains_when_significance_exists(
+    risk_obj, cytoscape_network, json_annotation
+):
+    """
+    Ensure left-tail analysis can still assign domains when depletion signal exists.
+
+    Args:
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
+        json_annotation: The JSON annotation associated with the network.
+    """
+    clusters = risk_obj.cluster_louvain(
+        network=cytoscape_network,
+        fraction_shortest_edges=0.75,
+        resolution=1.0,
+        random_seed=888,
+    )
+    stats_results = risk_obj.run_binom(
+        annotation=json_annotation,
+        clusters=clusters,
+        null_distribution="network",
+    )
+    graph = risk_obj.load_graph(
+        network=cytoscape_network,
+        annotation=json_annotation,
+        stats_results=stats_results,
+        tail="left",
+        pval_cutoff=0.5,
+        fdr_cutoff=1.0,
+        display_prune_threshold=0.0,
+        linkage_criterion="off",
+        linkage_method="average",
+        linkage_metric="yule",
+        linkage_threshold=0.2,
+        min_cluster_size=5,
+        max_cluster_size=1000,
+    )
+
+    # Verify that depletion-driven significance exists and can map to domains.
+    assert np.sum(graph.node_significance_sums != 0) > 0
+    assert len(graph.domain_id_to_node_ids_map) > 0
+    assert len(graph.node_id_to_domain_ids_and_significance_map) > 0
+    assert any(
+        len(v["domains"]) > 0 for v in graph.node_id_to_domain_ids_and_significance_map.values()
+    )
 
 
 def test_load_graph_returns_graph_instance(risk_obj, cytoscape_network, json_annotation):
@@ -661,6 +802,7 @@ def test_load_graph_returns_graph_instance(risk_obj, cytoscape_network, json_ann
         min_cluster_size=5,
         max_cluster_size=1000,
     )
+
     assert graph is not None
     assert hasattr(graph, "network")
 
@@ -688,6 +830,49 @@ def test_primary_domain_labels_are_disjoint(graph):
     assert len(graph.node_label_to_node_id_map) == len(
         set(graph.node_label_to_node_id_map.values())
     )
+
+
+def test_define_domains_handles_safeguard_row_drop_without_global_fallback():
+    """
+    Ensure dropped linkage rows do not desynchronize annotation-domain assignment.
+    A zero-variance significant annotation should be assigned a deterministic unique
+    domain, while non-significant annotations remain unassigned (domain 0).
+    """
+    # Two significant annotations: one degenerate (zero-variance) and one clusterable.
+    top_annotation = pd.DataFrame(
+        {
+            "significant_annotation": [True, True, False],
+            "full_terms": ["term_a", "term_b", "term_c"],
+            "significant_cluster_significance_sums": [1.0, 2.0, 0.0],
+            "significant_significance_score": [1.0, 2.0, 0.0],
+        },
+        index=["term_a", "term_b", "term_c"],
+    )
+    # term_a is dropped by safeguard (constant column), term_b is retained, term_c is non-significant.
+    significant_clusters_significance = np.array(
+        [
+            [5.0, 1.0, 0.0],
+            [5.0, 2.0, 0.0],
+            [5.0, 3.0, 0.0],
+            [5.0, 4.0, 0.0],
+        ],
+        dtype=float,
+    )
+
+    domains = define_domains(
+        top_annotation=top_annotation,
+        significant_clusters_significance=significant_clusters_significance,
+        linkage_criterion="distance",
+        linkage_method="average",
+        linkage_metric="euclidean",
+        linkage_threshold=0.2,
+    )
+
+    assert top_annotation.loc["term_c", "domain"] == 0
+    assert top_annotation.loc["term_a", "domain"] > 0
+    assert top_annotation.loc["term_b", "domain"] > 0
+    assert top_annotation.loc["term_a", "domain"] != top_annotation.loc["term_b", "domain"]
+    assert (domains["primary_domain"] > 0).any()
 
 
 def _validate_graph(graph):

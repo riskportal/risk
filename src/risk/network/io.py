@@ -9,6 +9,7 @@ import os
 import pickle
 import shutil
 import zipfile
+from collections import defaultdict
 from xml.dom import minidom
 
 import networkx as nx
@@ -263,82 +264,324 @@ class NetworkIO:
                 zip_ref.extractall(tmp_dir)
 
             # Reuse the first or requested view so downstream plots mirror Cytoscape's layout.
-            cys_view_files = [os.path.join(tmp_dir, cf) for cf in cys_files if "/views/" in cf]
-            cys_view_file = (
-                cys_view_files[0]
-                if not view_name
-                else [cvf for cvf in cys_view_files if cvf.endswith(view_name + ".xgmml")][0]
+            cys_view_file = self._select_cytoscape_view_file(
+                cys_files=cys_files,
+                tmp_dir=tmp_dir,
+                view_name=view_name,
             )
-            cys_view_dom = minidom.parse(cys_view_file)
-            cys_nodes = cys_view_dom.getElementsByTagName("node")
-            node_x_positions = {}
-            node_y_positions = {}
-            for node in cys_nodes:
-                node_id = str(node.attributes["label"].value)
-                for child in node.childNodes:
-                    if child.nodeType == 1 and child.tagName == "graphics":
-                        node_x_positions[node_id] = float(child.attributes["x"].value)
-                        node_y_positions[node_id] = float(child.attributes["y"].value)
+            view_positions = self._extract_view_positions(cys_view_file=cys_view_file)
+            view_labels = set(view_positions)
 
-            # Locate the attribute table that stores edge definitions (source/target columns).
-            attribute_metadata_keywords = ["/tables/", "SHARED_ATTRS", "edge.cytable"]
-            attribute_metadata = next(
-                (
-                    os.path.join(tmp_dir, cf)
-                    for cf in cys_files
-                    if all(keyword in cf for keyword in attribute_metadata_keywords)
-                ),
-                None,  # Default if no file matches
+            node_aliases = self._build_node_alias_map(
+                cys_files=cys_files,
+                tmp_dir=tmp_dir,
+                view_labels=view_labels,
             )
-            if attribute_metadata:
-                # Optimize `read_csv` by leveraging proper options
-                attribute_table = pd.read_csv(
-                    attribute_metadata,
-                    sep=",",
-                    header=None,
-                    skiprows=1,
-                    dtype=str,  # Use specific dtypes to reduce memory usage
-                    engine="c",  # Use the C engine for parsing if compatible
-                    low_memory=False,  # Optimize memory handling for large files
-                )
-            else:
-                raise ValueError("No matching attribute metadata file found.")
-
-            attribute_table.columns = attribute_table.iloc[0]
-            attribute_table = attribute_table.iloc[4:, :]
-            try:
-                attribute_table = attribute_table[[source_label, target_label]]
-            except KeyError as e:
-                missing_keys = [
-                    key
-                    for key in [source_label, target_label]
-                    if key not in attribute_table.columns
-                ]
-                available_columns = ", ".join(attribute_table.columns)
-                raise KeyError(
-                    f"The column(s) '{', '.join(missing_keys)}' do not exist in the table. "
-                    f"Available columns are: {available_columns}."
-                ) from e
-
-            attribute_table = attribute_table.dropna().reset_index(drop=True)
-
-            # Build a new graph using the restored edge table and the captured coordinates.
-            G = nx.Graph()
-            for _, row in attribute_table.iterrows():
-                source = row[source_label]
-                target = row[target_label]
-                G.add_edge(source, target)
+            attribute_table = self._select_edge_table(
+                cys_files=cys_files,
+                tmp_dir=tmp_dir,
+                source_label=source_label,
+                target_label=target_label,
+                node_aliases=node_aliases,
+                view_labels=view_labels,
+            )
+            G, skipped_edges = self._build_graph_from_edge_table(
+                attribute_table=attribute_table,
+                source_label=source_label,
+                target_label=target_label,
+                node_aliases=node_aliases,
+                view_labels=view_labels,
+            )
 
             for node in G.nodes():
                 G.nodes[node]["label"] = node
-                G.nodes[node]["x"] = node_x_positions[node]
-                G.nodes[node]["y"] = node_y_positions[node]
+                G.nodes[node]["x"] = view_positions[node][0]
+                G.nodes[node]["y"] = view_positions[node][1]
+
+            if skipped_edges:
+                total_rows = len(attribute_table)
+                logger.warning(
+                    "CYTOSCAPE EDGE FILTER WARNING — "
+                    f"{skipped_edges} out of {total_rows} edges "
+                    f"({skipped_edges / total_rows:.2%}) were skipped because their endpoints "
+                    "were not present in the selected view."
+                )
 
             return self._initialize_graph(G)
 
         finally:
             if os.path.exists(tmp_dir):
                 shutil.rmtree(tmp_dir)
+
+    def _select_cytoscape_view_file(
+        self,
+        cys_files: list,
+        tmp_dir: str,
+        view_name: str = "",
+    ) -> str:
+        """
+        Select a Cytoscape view file from a session archive.
+
+        Args:
+            cys_files (list): List of extracted file paths from a .cys archive.
+            tmp_dir (str): Temporary extraction directory.
+            view_name (str, optional): Optional suffix of a specific view to load.
+
+        Returns:
+            str: Absolute path to the selected view file.
+
+        Raises:
+            ValueError: If no view files exist or a requested view is not found.
+        """
+        view_files = [os.path.join(tmp_dir, cf) for cf in cys_files if "/views/" in cf]
+        if not view_files:
+            raise ValueError("No Cytoscape view files were found in the session archive.")
+
+        if not view_name:
+            return view_files[0]
+
+        matching = [vf for vf in view_files if vf.endswith(view_name + ".xgmml")]
+        if not matching:
+            raise ValueError(
+                f"View '{view_name}' was not found. Available views: "
+                f"{', '.join(os.path.basename(vf) for vf in view_files)}"
+            )
+        return matching[0]
+
+    def _extract_view_positions(self, cys_view_file: str) -> dict:
+        """
+        Extract node positions from a Cytoscape view file keyed by node label.
+
+        Args:
+            cys_view_file (str): Path to a Cytoscape view XGMML file.
+
+        Returns:
+            dict: Mapping of node label -> (x, y) coordinates.
+        """
+        cys_view_dom = minidom.parse(cys_view_file)
+        cys_nodes = cys_view_dom.getElementsByTagName("node")
+        view_positions = {}
+
+        for node in cys_nodes:
+            node_id = str(node.attributes["label"].value)
+            for child in node.childNodes:
+                if child.nodeType == 1 and child.tagName == "graphics":
+                    view_positions[node_id] = (
+                        float(child.attributes["x"].value),
+                        float(child.attributes["y"].value),
+                    )
+                    break
+
+        return view_positions
+
+    def _read_cytable(self, filepath: str) -> pd.DataFrame:
+        """
+        Read and normalize a Cytoscape .cytable file.
+
+        Args:
+            filepath (str): Path to a .cytable file.
+
+        Returns:
+            pd.DataFrame: Parsed attribute table without metadata preamble rows.
+        """
+        try:
+            table = pd.read_csv(
+                filepath,
+                sep=",",
+                header=None,
+                skiprows=1,
+                dtype=str,
+                engine="c",
+                low_memory=False,
+            )
+        except (pd.errors.ParserError, ValueError):
+            try:
+                table = pd.read_csv(
+                    filepath,
+                    sep=",",
+                    header=None,
+                    skiprows=1,
+                    dtype=str,
+                    engine="python",
+                )
+            except (pd.errors.ParserError, ValueError) as error:
+                raise ValueError(f"Unable to parse Cytoscape table: {filepath}") from error
+
+        if table.empty:
+            return table
+
+        table.columns = table.iloc[0]
+        table = table.iloc[4:, :]
+        table = table.dropna(how="all").reset_index(drop=True)
+        return table
+
+    def _build_node_alias_map(
+        self,
+        cys_files: list,
+        tmp_dir: str,
+        view_labels: set,
+    ) -> dict:
+        """
+        Build a robust lookup of alternate Cytoscape node identifiers to view labels.
+
+        Args:
+            cys_files (list): List of extracted file paths from a .cys archive.
+            tmp_dir (str): Temporary extraction directory.
+            view_labels (set): Node labels present in the selected view.
+
+        Returns:
+            dict: Alias map for resolving edge endpoints to view node labels.
+        """
+        aliases = {label: label for label in view_labels}
+        key_columns = ["SUID", "id", "id_original", "shared name", "shared_name", "name", "symbol"]
+        label_columns = ["shared name", "shared_name", "name", "label"]
+        node_tables = [
+            os.path.join(tmp_dir, cf)
+            for cf in cys_files
+            if "/tables/" in cf and "CyNode" in cf and cf.endswith("node.cytable")
+        ]
+        # Parse each node table and harvest identifier aliases that map to labels in the active view.
+        for node_table in node_tables:
+            try:
+                table = self._read_cytable(node_table)
+            except ValueError:
+                continue
+            if table.empty:
+                continue
+
+            # Pick the first available label-like column to serve as the canonical alias target.
+            available_label_columns = [col for col in label_columns if col in table.columns]
+            if not available_label_columns:
+                continue
+
+            label_col = available_label_columns[0]
+            for _, row in table.iterrows():
+                row_label = row.get(label_col)
+                if not isinstance(row_label, str) or row_label not in view_labels:
+                    continue
+
+                for key_col in key_columns:
+                    key = row.get(key_col)
+                    if isinstance(key, str) and key:
+                        aliases[key] = row_label
+
+        return aliases
+
+    def _select_edge_table(
+        self,
+        cys_files: list,
+        tmp_dir: str,
+        source_label: str,
+        target_label: str,
+        node_aliases: dict,
+        view_labels: set,
+    ) -> pd.DataFrame:
+        """
+        Select the edge table that best matches the current view after alias resolution.
+
+        Args:
+            cys_files (list): List of extracted file paths from a .cys archive.
+            tmp_dir (str): Temporary extraction directory.
+            source_label (str): Source column name.
+            target_label (str): Target column name.
+            node_aliases (dict): Alternate identifier map to view labels.
+            view_labels (set): Node labels present in the selected view.
+
+        Returns:
+            pd.DataFrame: Best matching edge table.
+
+        Raises:
+            ValueError: If no edge table exists in the archive.
+            KeyError: If no edge table contains the required source/target columns.
+        """
+        edge_table_paths = [
+            os.path.join(tmp_dir, cf)
+            for cf in cys_files
+            if "/tables/" in cf and "edge.cytable" in cf and "SHARED_ATTRS" in cf
+        ]
+        # Validation
+        if not edge_table_paths:
+            raise ValueError("No matching edge metadata table was found.")
+
+        # Track the edge table with the strongest endpoint overlap after alias resolution.
+        best_table = None
+        best_score = -1
+        available_columns = defaultdict(int)
+        for edge_table_path in edge_table_paths:
+            try:
+                edge_table = self._read_cytable(edge_table_path)
+            except ValueError:
+                continue
+            for column in edge_table.columns:
+                available_columns[column] += 1
+
+            if source_label not in edge_table.columns or target_label not in edge_table.columns:
+                continue
+
+            # Score this table by counting edges whose resolved endpoints both land in the view.
+            endpoints = edge_table[[source_label, target_label]].dropna().reset_index(drop=True)
+            score = 0
+            for _, row in endpoints.iterrows():
+                source = node_aliases.get(str(row[source_label]), str(row[source_label]))
+                target = node_aliases.get(str(row[target_label]), str(row[target_label]))
+                if source in view_labels and target in view_labels:
+                    score += 1
+
+            if score > best_score:
+                best_table = endpoints
+                best_score = score
+
+        # Validation
+        if best_table is None:
+            available = ", ".join(sorted(available_columns))
+            raise KeyError(
+                f"The column(s) '{source_label}, {target_label}' do not exist in edge tables. "
+                f"Available columns are: {available}."
+            )
+
+        return best_table
+
+    def _build_graph_from_edge_table(
+        self,
+        attribute_table: pd.DataFrame,
+        source_label: str,
+        target_label: str,
+        node_aliases: dict,
+        view_labels: set,
+    ) -> tuple:
+        """
+        Build a graph from an edge table after resolving endpoint aliases.
+
+        Args:
+            attribute_table (pd.DataFrame): Edge table with source/target columns.
+            source_label (str): Source column name.
+            target_label (str): Target column name.
+            node_aliases (dict): Alternate identifier map to view labels.
+            view_labels (set): Node labels present in the selected view.
+
+        Returns:
+            tuple: (graph, skipped_edge_count)
+        """
+        G = nx.Graph()
+        skipped_edges = 0
+
+        # Resolve endpoint aliases and skip edges that reference nodes outside the selected view.
+        for _, row in attribute_table.iterrows():
+            source = node_aliases.get(str(row[source_label]), str(row[source_label]))
+            target = node_aliases.get(str(row[target_label]), str(row[target_label]))
+            if source not in view_labels or target not in view_labels:
+                skipped_edges += 1
+                continue
+            G.add_edge(source, target)
+
+        # Validation
+        if G.number_of_edges() == 0:
+            raise ValueError(
+                "No valid edges could be resolved for the selected view. "
+                "Try a different view or verify Cytoscape table mappings."
+            )
+
+        return G, skipped_edges
 
     def load_network_cyjs(
         self,
@@ -625,10 +868,8 @@ class NetworkIO:
         # Extract x, y coordinates as a NumPy array
         nodes = list(G.nodes)
         xy_coords = np.array([[G.nodes[node]["x"], G.nodes[node]["y"]] for node in nodes])
-        # Normalize coordinates between [0, 1]
-        min_vals = xy_coords.min(axis=0)
-        max_vals = xy_coords.max(axis=0)
-        normalized_xy = (xy_coords - min_vals) / (max_vals - min_vals)
+        # Normalize coordinates between [0, 1] with zero-range safeguards.
+        normalized_xy = self._safe_min_max_normalize(xy_coords)
         # Convert normalized coordinates to spherical coordinates
         theta = normalized_xy[:, 0] * np.pi * 2
         phi = normalized_xy[:, 1] * np.pi
@@ -649,14 +890,41 @@ class NetworkIO:
         """
         # Extract x, y coordinates from the graph nodes
         xy_coords = np.array([[G.nodes[node]["x"], G.nodes[node]["y"]] for node in G.nodes()])
-        # Calculate min and max values for x and y
-        min_vals = np.min(xy_coords, axis=0)
-        max_vals = np.max(xy_coords, axis=0)
-        # Normalize the coordinates to [0, 1]
-        normalized_xy = (xy_coords - min_vals) / (max_vals - min_vals)
+        # Normalize coordinates to [0, 1] with zero-range safeguards.
+        normalized_xy = self._safe_min_max_normalize(xy_coords)
         # Update the node coordinates with the normalized values
         for i, node in enumerate(G.nodes()):
             G.nodes[node]["x"], G.nodes[node]["y"] = normalized_xy[i]
+
+    def _safe_min_max_normalize(
+        self, xy_coords: np.ndarray, zero_range_fill: float = 0.5
+    ) -> np.ndarray:
+        """
+        Normalize 2D coordinates to [0, 1] while avoiding divide-by-zero for flat axes.
+
+        Args:
+            xy_coords (np.ndarray): Coordinate array of shape (n_nodes, 2).
+            zero_range_fill (float, optional): Fill value used when an axis has zero range.
+                Defaults to 0.5 (center of the normalized interval).
+
+        Returns:
+            np.ndarray: Normalized coordinates with finite values.
+        """
+        if xy_coords.size == 0:
+            return np.empty_like(xy_coords, dtype=float)
+
+        min_vals = np.min(xy_coords, axis=0)
+        max_vals = np.max(xy_coords, axis=0)
+        ranges = max_vals - min_vals
+        zero_range_mask = np.isclose(ranges, 0.0)
+        safe_ranges = ranges.copy()
+        safe_ranges[zero_range_mask] = 1.0
+
+        normalized_xy = (xy_coords - min_vals) / safe_ranges
+        if np.any(zero_range_mask):
+            normalized_xy[:, zero_range_mask] = zero_range_fill
+
+        return normalized_xy
 
     def _create_depth(self, G: nx.Graph, surface_depth: float = 0.0) -> nx.Graph:
         """

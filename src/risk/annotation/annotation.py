@@ -110,7 +110,7 @@ def load_annotation(
     logger.info(f"Minimum number of nodes per annotation term: {min_nodes_per_term}")
     logger.info(f"Maximum number of nodes per annotation term: {max_nodes_per_term}")
     logger.info(f"Number of input annotation terms: {num_annotation}")
-    logger.info(f"Number of remaining annotation terms: {num_remaining_annotation}")
+    logger.info(f"Number of kept annotation terms: {num_remaining_annotation}")
 
     return {
         "ordered_nodes": ordered_nodes,

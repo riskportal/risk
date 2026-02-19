@@ -18,6 +18,7 @@ def test_initialize_risk(risk, verbose_setting):
     Test RISK instance initialization with verbose parameter.
 
     Args:
+        risk: Factory fixture that returns a configured RISK instance.
         verbose_setting: Boolean value to set verbosity of the RISK instance.
     """
     try:
@@ -56,6 +57,35 @@ def test_load_network_cytoscape(risk_obj, data_path):
     assert network is not None
     assert len(network.nodes) > 0  # Check that the network has nodes
     assert len(network.edges) > 0  # Check that the network has edges
+
+
+def test_load_network_cytoscape_nested_alias_resolution(risk_obj, data_path):
+    """
+    Test loading a Cytoscape network where edge endpoints require alias resolution.
+    The luck_2020_brain_cerebellum session stores edge endpoints as numeric IDs while
+    the active view uses ENSG labels. The loader should resolve aliases and load without
+    crashing.
+
+    Args:
+        risk_obj: The RISK object instance used for loading the network.
+        data_path: The base path to the directory containing the Cytoscape file.
+    """
+    cys_file = data_path / "cytoscape" / "luck_2020_brain_cerebellum.cys"
+    network = risk_obj.load_network_cytoscape(
+        filepath=str(cys_file), source_label="source", target_label="target", view_name=""
+    )
+
+    assert network is not None
+    assert len(network.nodes) > 0
+    assert len(network.edges) > 0
+
+    labels = [attrs["label"] for _, attrs in network.nodes(data=True)]
+    assert any(
+        isinstance(label, str) and label.startswith("ENSG") for label in labels
+    ), "Expected ENSG labels from the active view."
+    assert not any(
+        isinstance(label, str) and label.isdigit() for label in labels
+    ), "Node labels should resolve to view labels, not numeric edge IDs."
 
 
 def test_load_network_cyjs(risk_obj, data_path):
@@ -98,20 +128,17 @@ def test_load_network_networkx(risk_obj, dummy_network):
 
     Args:
         risk_obj: The RISK object instance used for loading the network.
-        network: The NetworkX graph object to be loaded into the RISK network.
+        dummy_network: The NetworkX graph object to be loaded into the RISK network.
     """
     network = risk_obj.load_network_networkx(network=dummy_network)
 
     assert network is not None
     assert len(network.nodes) > 0  # Check that the graph has nodes
     assert len(network.edges) > 0  # Check that the graph has edges
-    # Additional checks to verify the properties of the loaded graph
     for node in network.nodes:
-        # Check that each node in the original network is in the RISK network
         assert node in network.nodes
 
     for edge in network.edges:
-        # Check that each edge in the original network is in the RISK network
         assert edge in network.edges
 
 
@@ -122,10 +149,8 @@ def test_round_trip_io(risk_obj):
     Args:
         risk_obj: The RISK object instance used for loading the network.
     """
-    # Create a small test graph
     G = nx.Graph()
     G.add_edges_from([(0, 1), (1, 2)])
-    # Add node positions as required for network loading
     G.nodes[0]["x"] = 0.0
     G.nodes[0]["y"] = 0.0
     G.nodes[1]["x"] = 1.0
@@ -133,25 +158,21 @@ def test_round_trip_io(risk_obj):
     G.nodes[2]["x"] = 2.0
     G.nodes[2]["y"] = 2.0
 
-    # Ensure the tmp directory exists under data/tmp
     tmp_dir = os.path.join("data", "tmp")
     os.makedirs(tmp_dir, exist_ok=True)
     tmp_path = os.path.join(tmp_dir, "test_round_trip_io.gpickle")
 
     try:
-        # Save the graph using pickle
         with open(tmp_path, "wb") as f:
             pickle.dump(G, f)
 
-        # Load it back using risk_obj's load_network_gpickle
         G_loaded = risk_obj.load_network_gpickle(filepath=tmp_path)
 
-        # Compare properties of the graphs - RISK sets node IDs to 'label' attribute when no label is present
+        # Graph structure should survive a simple pickle round-trip via loader.
         assert set(G.nodes()) == set(G_loaded.nodes())
         assert set(G.edges()) == set(G_loaded.edges())
 
     finally:
-        # Always remove the temporary file at the end
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
@@ -163,17 +184,14 @@ def test_node_positions_constant_after_networkx_load(risk_obj, dummy_network):
 
     Args:
         risk_obj: The RISK object instance used for loading the network.
-        network: The NetworkX graph object to be loaded into the RISK network.
+        dummy_network: The NetworkX graph object to be loaded into the RISK network.
     """
-    # Store the original positions of nodes from the dummy_network
     original_positions = {
         node: (dummy_network.nodes[node]["x"], dummy_network.nodes[node]["y"])
         for node in dummy_network.nodes
     }
-    # Pass the network to the load function, and ignore the returned network
     _ = risk_obj.load_network_networkx(network=dummy_network)
 
-    # Ensure that the original network (dummy_network) still has the same node positions
     for node in dummy_network.nodes:
         assert (
             "x" in dummy_network.nodes[node]
@@ -324,13 +342,56 @@ def test_sphere_unfolding(risk_obj, data_path):
         assert -1 <= attrs["y"] <= 1, f"Node {node} 'y' coordinate is out of bounds"
 
 
+@pytest.mark.parametrize(
+    "compute_sphere,node_coords",
+    [
+        # Flat x-axis (all x identical): exercises safe normalization without sphere mapping.
+        (False, {"a": (1.0, 0.0), "b": (1.0, 1.0), "c": (1.0, 2.0)}),
+        # Flat y-axis (all y identical): exercises safe normalization with sphere mapping enabled.
+        (True, {"a": (0.0, 2.0), "b": (1.0, 2.0), "c": (2.0, 2.0)}),
+    ],
+)
+def test_flat_axis_coordinates_remain_finite_after_loading(risk_obj, compute_sphere, node_coords):
+    """
+    Ensure coordinate normalization is stable when x or y has zero range.
+
+    Args:
+        risk_obj: The RISK object instance used for loading the network.
+        compute_sphere: Whether to enable spherical coordinate processing.
+        node_coords: Mapping of node ids to (x, y) coordinates.
+    """
+    network = nx.Graph()
+    network.add_edges_from([("a", "b"), ("b", "c")])
+    for node, (x_coord, y_coord) in node_coords.items():
+        network.nodes[node]["x"] = x_coord
+        network.nodes[node]["y"] = y_coord
+        network.nodes[node]["label"] = node
+
+    loaded = risk_obj.load_network_networkx(
+        network=network,
+        compute_sphere=compute_sphere,
+        surface_depth=0.2,
+        min_edges_per_node=0,
+    )
+
+    # Guard against NaN/Inf coordinate propagation from zero-range normalization.
+    for node, attrs in loaded.nodes(data=True):
+        assert np.isfinite(attrs["x"]), f"Node {node} has non-finite x coordinate"
+        assert np.isfinite(attrs["y"]), f"Node {node} has non-finite y coordinate"
+
+    # Edge lengths must remain finite and strictly positive for downstream clustering/layout.
+    for u, v, attrs in loaded.edges(data=True):
+        assert np.isfinite(attrs["length"]), f"Edge ({u}, {v}) has non-finite length"
+        assert attrs["length"] > 0, f"Edge ({u}, {v}) has non-positive length"
+
+
 def test_edge_attribute_fallback(risk_obj, dummy_network):
     """
     Test fallback when edges are missing 'length' or 'weight' attributes.
 
     Args:
         risk_obj: The RISK object instance used for loading the network.
-        dummy_network: The Cytoscape network to be loaded into the R
+        dummy_network: The network used to validate edge attribute fallback behavior.
     """
     # Remove 'length' and 'weight' attributes
     for u, v in dummy_network.edges():

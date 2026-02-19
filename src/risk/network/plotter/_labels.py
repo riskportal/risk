@@ -35,7 +35,7 @@ class Labels:
         self,
         scale: float = 1.05,
         offset: float = 0.10,
-        font: str = "Arial",
+        font: str = "DejaVu Sans",
         fontcase: Union[str, Dict[str, str], None] = None,
         fontsize: int = 10,
         fontcolor: Union[str, List, Tuple, np.ndarray] = "black",
@@ -62,7 +62,7 @@ class Labels:
         Args:
             scale (float, optional): Scale factor for positioning labels around the perimeter. Defaults to 1.05.
             offset (float, optional): Offset distance for labels from the perimeter. Defaults to 0.10.
-            font (str, optional): Font name for the labels. Defaults to "Arial".
+            font (str, optional): Font name for the labels. Defaults to "DejaVu Sans".
             fontcase (str, Dict[str, str], or None, optional): Defines how to transform the case of words.
                 - If a string (e.g., 'upper', 'lower', 'title'), applies the transformation to all words.
                 - If a dictionary, maps specific cases ('lower', 'upper', 'title') to transformations (e.g., 'lower'='upper').
@@ -251,7 +251,7 @@ class Labels:
         radial_position: float = 0.0,
         scale: float = 1.05,
         offset: float = 0.10,
-        font: str = "Arial",
+        font: str = "DejaVu Sans",
         fontsize: int = 10,
         fontcolor: Union[str, List, Tuple, np.ndarray] = "black",
         fontalpha: Union[float, None] = 1.0,
@@ -271,7 +271,7 @@ class Labels:
             radial_position (float, optional): Radial angle for positioning the label, in degrees (0-360). Defaults to 0.0.
             scale (float, optional): Scale factor for positioning the label around the perimeter. Defaults to 1.05.
             offset (float, optional): Offset distance for the label from the perimeter. Defaults to 0.10.
-            font (str, optional): Font name for the label. Defaults to "Arial".
+            font (str, optional): Font name for the label. Defaults to "DejaVu Sans".
             fontsize (int, optional): Font size for the label. Defaults to 10.
             fontcolor (str, List, Tuple, or np.ndarray, optional): Color of the label text. Defaults to "black".
             fontalpha (float, None, optional): Transparency level for the font color. If provided, it overrides any existing alpha values found

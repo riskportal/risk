@@ -56,7 +56,7 @@ plotter,subcontour_alpha,0.2
 plotter,subcontour_color,white
 plotter,label_perimeter_scale,1.25
 plotter,label_offset,0.1
-plotter,label_font,Arial
+plotter,label_font,DejaVu Sans
 plotter,label_fontsize,10
 plotter,label_fontcolor,white
 plotter,label_arrow_linewidth,1
@@ -65,7 +65,7 @@ plotter,label_max_words,4
 plotter,label_min_words,2
 plotter,sublabel_perimeter_scale,1.6
 plotter,sublabel_offset,0.1
-plotter,sublabel_font,Arial
+plotter,sublabel_font,DejaVu Sans
 plotter,sublabel_fontsize,14
 plotter,sublabel_fontcolor,white
 plotter,sublabel_arrow_linewidth,1.5
