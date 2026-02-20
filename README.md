@@ -52,13 +52,13 @@ Horecka, I., and Röst, H. (2026)
 <br>
 _RISK: a next-generation tool for biological network annotation and visualization_
 <br>
-_Bioinformatics_. https://doi.org/10.1093/bioinformatics/btaf669
+_Bioinformatics_. [https://doi.org/10.1093/bioinformatics/btaf669](https://doi.org/10.1093/bioinformatics/btaf669)
 
 ### Software archive
 
 RISK software for the published manuscript.
 <br>
-Zenodo. https://doi.org/10.5281/zenodo.17257418
+Zenodo. [https://doi.org/10.5281/zenodo.17257418](https://doi.org/10.5281/zenodo.17257418)
 
 ## Contributing
 
