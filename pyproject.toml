@@ -27,20 +27,19 @@ classifiers = [
 ]
 dependencies = [
     "ipywidgets",
-    "leidenalg",
+    "leidenalg<0.11",
     "markov_clustering",
     "matplotlib",
     "networkx",
     "nltk",
-    "numpy",
+    "numpy>=1.21",
     "openpyxl",
-    "pandas",
-    "python-igraph",
+    "pandas>=1.3",
+    "igraph>=0.11,<1.0",
     "python-louvain",
-    "scikit-learn",
+    "scikit-learn>=1.0",
     "scipy",
     "statsmodels",
-    "threadpoolctl",
     "tqdm",
 ]
 
