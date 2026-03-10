@@ -21,9 +21,9 @@ class Params:
     """
     Handles the storage and logging of various parameters for network analysis.
 
-    The Params class provides methods to log parameters related to different components of the analysis,
-    such as the network, annotation, clusters, graph, and plotter settings. It also stores
-    the current datetime when the parameters were initialized.
+    The Params class provides methods to log parameters related to different components of the
+    analysis, such as the network, annotation, clusters, graph, and plotter settings. It also
+    stores the current datetime when the parameters were initialized.
     """
 
     def __init__(self):

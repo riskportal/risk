@@ -17,9 +17,9 @@ class Graph:
     """
     A class to represent a network graph and process its nodes and edges.
 
-    The Graph class provides functionality to handle and manipulate a network graph,
-    including managing domains, annotation, and node significance data. It also includes methods
-    for transforming and mapping graph coordinates, as well as generating colors based on node
+    The Graph class provides functionality to handle and manipulate a network graph, including
+    managing domains, annotation, and node significance data. It also includes methods for
+    transforming and mapping graph coordinates, as well as generating colors based on node
     significance.
     """
 
@@ -34,7 +34,6 @@ class Graph:
         node_significance_sums: np.ndarray,
     ):
         """
-
         Initialize the Graph object.
 
         Args:
@@ -80,6 +79,7 @@ class Graph:
     def pop(self, domain_id: int) -> List[str]:
         """
         Remove a domain ID from the graph and return the corresponding node labels.
+        Also invalidates cached summary output.
 
         Args:
             domain_id (int): The domain ID to remove from the cached domain mappings.
@@ -108,6 +108,7 @@ class Graph:
                 domain_info["domains"].remove(domain_id)
                 domain_info["significances"].pop(domain_id)
 
+        self.summary.clear_cache()
         return node_labels
 
     def _create_domain_id_to_node_ids_map(self, domains: pd.DataFrame) -> Dict[int, Any]:

@@ -156,8 +156,9 @@ class NetworkIO:
     """
     A class for loading, processing, and managing network data.
 
-    The NetworkIO class provides methods to load network data from various formats (e.g., GPickle, NetworkX)
-    and process the network by adjusting node coordinates, calculating edge lengths, and validating graph structure.
+    The NetworkIO class provides methods to load network data from various formats (e.g., GPickle,
+    NetworkX) and process the network by adjusting node coordinates, calculating edge lengths, and
+    validating graph structure.
     """
 
     def __init__(

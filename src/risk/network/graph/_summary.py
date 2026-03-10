@@ -16,10 +16,10 @@ class Summary:
     """
     Handles the processing, storage, and export of network analysis results.
 
-    The Summary class provides methods to process significance and depletion data,
-    compute FDR-corrected q-values, and structure information on domains and
-    annotations into a DataFrame. It also offers functionality to export the
-    processed data in CSV, JSON, and text formats for analysis and reporting.
+    The Summary class provides methods to process significance and depletion data, compute
+    FDR-corrected q-values, and structure information on domains and annotations into a DataFrame.
+    It also offers functionality to export the processed data in CSV, JSON, and text formats for
+    analysis and reporting.
     """
 
     _ANNOTATION_COLUMN = "Annotation"
@@ -77,6 +77,13 @@ class Summary:
         self.annotation = annotation
         self.stats_results = stats_results
         self.graph = graph
+        self._summary_cache = None
+
+    def clear_cache(self) -> None:
+        """
+        Clear the cached summary table. Use this when upstream internals are manually mutated outside Graph APIs.
+        """
+        self._summary_cache = None
 
     def to_csv(self, filepath: str) -> None:
         """
@@ -124,6 +131,10 @@ class Summary:
                 - Domain-conditioned p/q values (minimum p/q within nodes belonging to each domain)
         """
         log_header("Loading analysis summary")
+        if self._summary_cache is not None:
+            logger.debug("Returning cached analysis summary.")
+            return self._summary_cache.copy()
+
         ordered_annotation = tuple(self.annotation["ordered_annotation"])
         # Cache annotation -> matrix column index for constant-time lookups downstream.
         annotation_to_idx = {description: idx for idx, description in enumerate(ordered_annotation)}
@@ -151,18 +162,19 @@ class Summary:
             enrichment_qvals=enrichment_qvals,
             depletion_qvals=depletion_qvals,
         )
-        return self._merge_and_finalize_results(
+        results = self._merge_and_finalize_results(
             ordered_annotation=ordered_annotation_frame,
             raw_results=raw_results,
             domain_results=domain_results,
         )
+        self._summary_cache = results
+        return results.copy()
 
     def _build_annotation_members_map(self, annotation_to_idx: Dict[str, int]) -> Dict[str, str]:
         """
-        Precompute matched member labels for each annotation from the sparse matrix.
-
-        This method uses CSC column pointers to avoid repeated sparse-column slicing
-        and dense conversions when building summary rows.
+        Precompute matched member labels for each annotation from the sparse matrix. This method uses
+        CSC column pointers to avoid repeated sparse-column slicing and dense conversions when building
+        summary rows.
 
         Args:
             annotation_to_idx (Dict[str, int]): Mapping from annotation label to
@@ -197,10 +209,8 @@ class Summary:
         depletion_qvals: np.ndarray,
     ) -> pd.DataFrame:
         """
-        Build domain-conditioned rows used in the summary table.
-
-        For each annotation assigned to a domain label, domain-level p/q values are
-        computed as minima over nodes that belong to that domain.
+        Build domain-conditioned rows used in the summary table. For each annotation assigned to a domain
+        label, domain-level p/q values are computed as minima over nodes that belong to that domain.
 
         Args:
             annotation_to_idx (Dict[str, int]): Mapping from annotation label to

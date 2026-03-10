@@ -341,10 +341,9 @@ def _calculate_jaccard_index(set1: Set[Any], set2: Set[Any]) -> float:
 
 def _generate_coherent_description(words: List[str]) -> str:
     """
-    Generate a coherent description from a list of words.
-
-    If there is only one unique entry, return it directly.
-    Otherwise, order the words by frequency and join them into a single string.
+    Generate a coherent description from a list of words. If there is only one unique entry,
+    return it directly; otherwise, order the words by frequency and join them into a single
+    string.
 
     Args:
         words (List[str]): A list of tokens.

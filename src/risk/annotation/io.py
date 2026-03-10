@@ -17,8 +17,9 @@ class AnnotationAPI:
     """
     Handles the loading and exporting of annotation in various file formats.
 
-    The AnnotationAPI class provides methods to load annotation from different file types (JSON, CSV, Excel, etc.)
-    and to export parameter data to various formats like JSON, CSV, and text files.
+    The AnnotationAPI class provides methods to load annotation from different file types
+    (JSON, CSV, Excel, etc.) and to export parameter data to various formats like JSON, CSV,
+    and text files.
     """
 
     def load_annotation_json(
