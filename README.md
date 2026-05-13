@@ -18,7 +18,7 @@ _Bioinformatics_. https://doi.org/10.1093/bioinformatics/btaf669
 ## Documentation and Tutorial
 
 - **Full Documentation**: [riskportal.github.io/risk-docs](https://riskportal.github.io/risk-docs)
-- **Figure Gallery**: [riskportal.github.io/risk-docs/8_figure_gallery](https://riskportal.github.io/risk-docs/8_figure_gallery/)
+- **Figure Gallery**: [riskportal.github.io/risk-docs/figure-gallery](https://riskportal.github.io/risk-docs/figure-gallery/)
 - **Try in Browser (Binder)**: [![Launch in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riskportal/risk-docs/HEAD?filepath=notebooks/quickstart.ipynb)
 - **Documentation Repository**: [github.com/riskportal/risk-docs](https://github.com/riskportal/risk-docs)
 
