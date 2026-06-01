@@ -19,7 +19,9 @@ _Bioinformatics_. https://doi.org/10.1093/bioinformatics/btaf669
 
 - **Full Documentation**: [riskportal.github.io/risk-docs](https://riskportal.github.io/risk-docs)
 - **Figure Gallery**: [riskportal.github.io/risk-docs/figure-gallery](https://riskportal.github.io/risk-docs/figure-gallery/)
-- **Try in Browser (Binder)**: [![Launch in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riskportal/risk-docs/HEAD?filepath=notebooks/quickstart.ipynb)
+- **Try in Browser (Binder)**:
+  - Quickstart: [![Launch Quickstart in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riskportal/risk-docs/HEAD?filepath=notebooks/quickstart.ipynb)
+  - Advanced Quickstart: [![Launch Advanced Quickstart in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/riskportal/risk-docs/HEAD?filepath=notebooks/quickstart_advanced.ipynb)
 - **Documentation Repository**: [github.com/riskportal/risk-docs](https://github.com/riskportal/risk-docs)
 
 ## Installation
