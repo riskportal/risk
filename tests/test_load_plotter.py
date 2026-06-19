@@ -1833,3 +1833,34 @@ def test_validate_and_update_domain_ids_to_labels_preserves_term_delimiter(graph
         assert filtered_domain_terms[d0] == label_with_delimiter
     finally:
         plt.close("all")
+
+
+# --- fontcase / _apply_str_transformation ---
+
+
+def test_apply_str_transformation_upper(graph):
+    from risk.network.plotter._labels import Labels
+
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    try:
+        result = labeler._apply_str_transformation(
+            words=["alpha beta", "gamma"], transformation="upper"
+        )
+        assert result == ["ALPHA BETA", "GAMMA"]
+    finally:
+        plt.close("all")
+
+
+def test_apply_str_transformation_deduplicates_after_transform(graph):
+    from risk.network.plotter._labels import Labels
+
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    try:
+        result = labeler._apply_str_transformation(words=["alpha", "ALPHA"], transformation="upper")
+        assert result == ["ALPHA"]
+    finally:
+        plt.close("all")
