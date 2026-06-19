@@ -1679,3 +1679,56 @@ def test_validate_and_update_domain_suppresses_duplicate_auto_label(graph):
         graph.domain_id_to_domain_terms_map[d0] = saved_d0
         graph.domain_id_to_domain_terms_map[d1] = saved_d1
         plt.close("all")
+
+
+# --- to_rgba: 0-255 integer color support ---
+
+
+def test_to_rgba_255_rgb():
+    from risk.network.plotter._utils.colors import to_rgba
+
+    result = to_rgba((255, 0, 0))
+    np.testing.assert_allclose(result, [1.0, 0.0, 0.0, 1.0], atol=1e-6)
+
+
+def test_to_rgba_255_rgba():
+    from risk.network.plotter._utils.colors import to_rgba
+
+    result = to_rgba((0, 128, 255, 200))
+    np.testing.assert_allclose(result, [0.0, 128 / 255, 1.0, 200 / 255], atol=1e-6)
+
+
+def test_to_rgba_01_float_unchanged():
+    from risk.network.plotter._utils.colors import to_rgba
+
+    result = to_rgba((0.5, 0.2, 0.8))
+    np.testing.assert_allclose(result, [0.5, 0.2, 0.8, 1.0], atol=1e-6)
+
+
+def test_to_rgba_255_alpha_override():
+    from risk.network.plotter._utils.colors import to_rgba
+
+    result = to_rgba((255, 0, 0, 200), alpha=0.3)
+    np.testing.assert_allclose(result[:3], [1.0, 0.0, 0.0], atol=1e-6)
+    assert result[3] == pytest.approx(0.3)
+
+
+def test_to_rgba_255_with_channel_one():
+    from risk.network.plotter._utils.colors import to_rgba
+
+    result = to_rgba((255, 1, 255))
+    np.testing.assert_allclose(result, [1.0, 1 / 255, 1.0, 1.0], atol=1e-6)
+
+
+def test_to_rgba_out_of_255_raises():
+    from risk.network.plotter._utils.colors import to_rgba
+
+    with pytest.raises(ValueError):
+        to_rgba((0, 0, 300))
+
+
+def test_to_rgba_float_out_of_range_raises():
+    from risk.network.plotter._utils.colors import to_rgba
+
+    with pytest.raises(ValueError):
+        to_rgba((1.5, 0.5, 0.5))

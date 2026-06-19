@@ -387,8 +387,18 @@ def to_rgba(
             # Convert color names or hex values (e.g., 'red', '#FF5733') to RGBA
             rgba = np.array(mcolors.to_rgba(c))
         elif isinstance(c, (list, tuple, np.ndarray)) and len(c) in [3, 4]:
-            # Convert RGB (3) or RGBA (4) values to RGBA format
-            rgba = np.array(mcolors.to_rgba(c))
+            c_arr = np.asarray(c, dtype=float)
+            if c_arr.max() <= 1.0:
+                # All channels in [0, 1]: pass through unchanged
+                rgba = np.array(mcolors.to_rgba(tuple(c_arr)))
+            elif np.all(c_arr == np.floor(c_arr)) and np.all((c_arr >= 0) & (c_arr <= 255)):
+                # All integer-valued channels in [0, 255]: normalize to [0, 1]
+                rgba = np.array(mcolors.to_rgba(tuple(c_arr / 255.0)))
+            else:
+                raise ValueError(
+                    f"Invalid color {list(c)!r}: numeric RGB/RGBA values must be all floats "
+                    f"in [0, 1] or all integers in [0, 255]. Got: {list(c_arr)}"
+                )
         else:
             raise ValueError(
                 f"Invalid color format: {c}. Must be a valid string or RGB/RGBA sequence."
