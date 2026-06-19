@@ -51,6 +51,8 @@ class Contour:
             grid_size (int, optional): Resolution of the grid for KDE. Higher values create finer contours. Defaults to 250.
             color (str, List, Tuple, or np.ndarray, optional): Color of the contours. Can be a single color or an array of colors.
                 Defaults to "white".
+            edge_color (str, List, Tuple, np.ndarray, or None, optional): Color for the contour outlines. When provided,
+                overrides the fill color for the outline. Defaults to None.
             linestyle (str, optional): Line style for the contours. Defaults to "solid".
             linewidth (float, optional): Line width for the contours. Defaults to 1.5.
             alpha (float, None, optional): Transparency level of the contour lines. If provided, it overrides any existing alpha values
@@ -127,6 +129,8 @@ class Contour:
             grid_size (int, optional): Resolution of the grid for KDE. Higher values create finer contours. Defaults to 250.
             color (str, List, Tuple, or np.ndarray, optional): Color of the contour. Can be a string (e.g., 'white') or RGBA array.
                 Can be a single color or an array of colors. Defaults to "white".
+            edge_color (str, List, Tuple, np.ndarray, or None, optional): Color for the contour outlines. When provided,
+                overrides the fill color for the outline. Defaults to None.
             linestyle (str, optional): Line style for the contour. Defaults to "solid".
             linewidth (float, optional): Line width for the contour. Defaults to 1.5.
             alpha (float, None, optional): Transparency level of the contour lines. If provided, it overrides any existing alpha values
@@ -210,6 +214,8 @@ class Contour:
             bandwidth (float, optional): Bandwidth for the KDE. Controls smoothness. Defaults to 0.8.
             grid_size (int, optional): Grid resolution for the KDE. Higher values yield finer contours. Defaults to 250.
             color (str or np.ndarray): Color for the contour. Can be a string or RGBA array. Defaults to "white".
+            edge_color (str or np.ndarray, optional): Color for the contour outline. When None, the fill color is used.
+                Defaults to None.
             linestyle (str, optional): Line style for the contour. Defaults to "solid".
             linewidth (float, optional): Line width for the contour. Defaults to 1.5.
             fill_alpha (float, None, optional): Transparency level for the contour fill. If provided, it overrides any existing

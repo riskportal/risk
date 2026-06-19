@@ -8,6 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pytest
 
+from risk.network.plotter._labels import Labels, TERM_DELIMITER
+from risk.network.plotter._utils.colors import to_rgba
+
 # NOTE: Displaying plots during testing can cause the program to hang. Avoid including plot displays in tests.
 matplotlib.use("Agg")  # non-GUI backend
 
@@ -1618,11 +1621,11 @@ def test_get_annotated_label_and_contour_colors_length(risk_obj, graph):
 
 def test_validate_and_update_domain_suppresses_duplicate_auto_label(graph):
     """
-    When two domains resolve to the same auto-generated label string,
-    _validate_and_update_domain must accept the first and reject the second.
-    """
-    from risk.network.plotter._labels import Labels
+    Test that _validate_and_update_domain rejects an auto-generated label that duplicates one already accepted.
 
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
     # Domain IDs that exist in both maps (terms map supplies the label; node map proves they are real domains)
     domain_ids = [
         d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
@@ -1681,69 +1684,70 @@ def test_validate_and_update_domain_suppresses_duplicate_auto_label(graph):
         plt.close("all")
 
 
-# --- to_rgba: 0-255 integer color support ---
-
-
 def test_to_rgba_255_rgb():
-    from risk.network.plotter._utils.colors import to_rgba
-
+    """Test that an integer RGB tuple in [0, 255] is normalized to [0, 1] RGBA."""
     result = to_rgba((255, 0, 0))
     np.testing.assert_allclose(result, [1.0, 0.0, 0.0, 1.0], atol=1e-6)
 
 
 def test_to_rgba_255_rgba():
-    from risk.network.plotter._utils.colors import to_rgba
-
+    """Test that an integer RGBA tuple in [0, 255] is normalized to [0, 1] RGBA."""
     result = to_rgba((0, 128, 255, 200))
     np.testing.assert_allclose(result, [0.0, 128 / 255, 1.0, 200 / 255], atol=1e-6)
 
 
 def test_to_rgba_01_float_unchanged():
-    from risk.network.plotter._utils.colors import to_rgba
-
+    """Test that a float RGB tuple already in [0, 1] is passed through without normalization."""
     result = to_rgba((0.5, 0.2, 0.8))
     np.testing.assert_allclose(result, [0.5, 0.2, 0.8, 1.0], atol=1e-6)
 
 
 def test_to_rgba_255_alpha_override():
-    from risk.network.plotter._utils.colors import to_rgba
-
+    """Test that the alpha parameter overrides the alpha channel when converting a 0-255 RGBA color."""
     result = to_rgba((255, 0, 0, 200), alpha=0.3)
     np.testing.assert_allclose(result[:3], [1.0, 0.0, 0.0], atol=1e-6)
     assert result[3] == pytest.approx(0.3)
 
 
 def test_to_rgba_255_with_channel_one():
-    from risk.network.plotter._utils.colors import to_rgba
-
+    """Test that a 0-255 RGB tuple containing a channel value of 1 is interpreted as 8-bit, not 0-1 float."""
     result = to_rgba((255, 1, 255))
     np.testing.assert_allclose(result, [1.0, 1 / 255, 1.0, 1.0], atol=1e-6)
 
 
 def test_to_rgba_out_of_255_raises():
-    from risk.network.plotter._utils.colors import to_rgba
-
+    """Test that a numeric color with a channel value exceeding 255 raises ValueError."""
     with pytest.raises(ValueError):
         to_rgba((0, 0, 300))
 
 
 def test_to_rgba_float_out_of_range_raises():
-    from risk.network.plotter._utils.colors import to_rgba
-
+    """Test that a float RGB color with a channel value above 1.0 raises ValueError."""
     with pytest.raises(ValueError):
         to_rgba((1.5, 0.5, 0.5))
 
 
-# --- edge_color support ---
-
-
 def test_plot_contours_edge_color(risk_obj, graph):
+    """
+    Test that plot_contours accepts an edge_color argument without raising.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which contours will be plotted.
+    """
     plotter = initialize_plotter(risk_obj, graph)
     plotter.plot_contours(edge_color="red")
     plt.close("all")
 
 
 def test_plot_subcontour_edge_color(risk_obj, graph):
+    """
+    Test that plot_subcontour accepts an edge_color argument without raising.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which contours will be plotted.
+    """
     plotter = initialize_plotter(risk_obj, graph)
     plotter.plot_subcontour(
         nodes=["LSM1", "LSM2", "LSM3", "LSM4", "LSM5", "LSM6", "LSM7", "PAT1"],
@@ -1752,12 +1756,13 @@ def test_plot_subcontour_edge_color(risk_obj, graph):
     plt.close("all")
 
 
-# --- ids_to_labels wrapping ---
-
-
 def test_validate_and_update_domain_ids_to_labels_wraps_long_string(graph):
-    from risk.network.plotter._labels import Labels, TERM_DELIMITER
+    """
+    Test that a long ids_to_labels string is split across multiple lines according to max_chars_per_line.
 
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
     domain_ids = [
         d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
     ]
@@ -1796,8 +1801,12 @@ def test_validate_and_update_domain_ids_to_labels_wraps_long_string(graph):
 
 
 def test_validate_and_update_domain_ids_to_labels_preserves_term_delimiter(graph):
-    from risk.network.plotter._labels import Labels, TERM_DELIMITER
+    """
+    Test that an ids_to_labels value containing TERM_DELIMITER is stored verbatim without re-wrapping.
 
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
     domain_ids = [
         d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
     ]
@@ -1835,12 +1844,13 @@ def test_validate_and_update_domain_ids_to_labels_preserves_term_delimiter(graph
         plt.close("all")
 
 
-# --- fontcase / _apply_str_transformation ---
-
-
 def test_apply_str_transformation_upper(graph):
-    from risk.network.plotter._labels import Labels
+    """
+    Test that _apply_str_transformation converts each label string to uppercase.
 
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
     _, ax = plt.subplots()
     labeler = Labels(graph=graph, ax=ax)
 
@@ -1854,8 +1864,12 @@ def test_apply_str_transformation_upper(graph):
 
 
 def test_apply_str_transformation_deduplicates_after_transform(graph):
-    from risk.network.plotter._labels import Labels
+    """
+    Test that _apply_str_transformation removes duplicates that arise after case transformation.
 
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
     _, ax = plt.subplots()
     labeler = Labels(graph=graph, ax=ax)
 

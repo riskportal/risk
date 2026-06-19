@@ -579,6 +579,7 @@ class Labels:
         if ids_to_labels and domain_id in ids_to_labels:
             raw_label = ids_to_labels[domain_id]
             if TERM_DELIMITER in raw_label:
+                # Preserve explicit TERM_DELIMITER formatting supplied by the caller
                 domain_terms = raw_label
             else:
                 domain_terms = self._combine_words(

@@ -360,7 +360,8 @@ def to_rgba(
 
     Args:
         color (str, List, Tuple, np.ndarray, None): The color(s) to convert. Can be a string (e.g., 'red'), a list or tuple of RGB/RGBA values,
-            or an `np.ndarray` of colors. If None, the function will return an array of white (RGBA) colors.
+            or an `np.ndarray` of colors. Integer values in [0, 255] are accepted and normalized to [0, 1] automatically.
+            If None, the function will return an array of white (RGBA) colors.
         alpha (float, None, optional): Alpha value (transparency) to apply. If provided, it overrides any existing alpha values found
             in color.
         num_repeats (int, None, optional): If provided, the color(s) will be repeated this many times. Defaults to None.
@@ -374,7 +375,7 @@ def to_rgba(
 
     def convert_to_rgba(c: Union[str, List, Tuple, np.ndarray]) -> np.ndarray:
         """
-        Convert a single color to RGBA format, handling strings, hex, and RGB/RGBA lists.
+        Convert a single color to RGBA format, handling strings, hex, and RGB/RGBA lists. Integer sequences in [0, 255] are normalized to [0, 1].
 
         Args:
             c (str, List, Tuple, np.ndarray): The color to convert.
