@@ -1732,3 +1732,21 @@ def test_to_rgba_float_out_of_range_raises():
 
     with pytest.raises(ValueError):
         to_rgba((1.5, 0.5, 0.5))
+
+
+# --- edge_color support ---
+
+
+def test_plot_contours_edge_color(risk_obj, graph):
+    plotter = initialize_plotter(risk_obj, graph)
+    plotter.plot_contours(edge_color="red")
+    plt.close("all")
+
+
+def test_plot_subcontour_edge_color(risk_obj, graph):
+    plotter = initialize_plotter(risk_obj, graph)
+    plotter.plot_subcontour(
+        nodes=["LSM1", "LSM2", "LSM3", "LSM4", "LSM5", "LSM6", "LSM7", "PAT1"],
+        edge_color="red",
+    )
+    plt.close("all")

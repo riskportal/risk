@@ -36,6 +36,7 @@ class Contour:
         bandwidth: float = 0.8,
         grid_size: int = 250,
         color: Union[str, List, Tuple, np.ndarray] = "white",
+        edge_color: Union[str, List, Tuple, np.ndarray, None] = None,
         linestyle: str = "solid",
         linewidth: float = 1.5,
         alpha: Union[float, None] = 1.0,
@@ -75,6 +76,13 @@ class Contour:
         color_rgba = to_rgba(
             color=color, alpha=alpha, num_repeats=len(self.graph.domain_id_to_node_ids_map)
         )
+        edge_color_rgba = (
+            to_rgba(
+                color=edge_color, alpha=alpha, num_repeats=len(self.graph.domain_id_to_node_ids_map)
+            )
+            if edge_color is not None
+            else None
+        )
         # Extract node coordinates from the network graph
         node_coordinates = self.graph.node_coordinates
         # Draw contours for each domain in the network
@@ -87,6 +95,7 @@ class Contour:
                     node_coordinates,
                     node_ids,
                     color=color_rgba[idx],
+                    edge_color=edge_color_rgba[idx] if edge_color_rgba is not None else None,
                     levels=levels,
                     bandwidth=bandwidth,
                     grid_size=grid_size,
@@ -102,6 +111,7 @@ class Contour:
         bandwidth: float = 0.8,
         grid_size: int = 250,
         color: Union[str, List, Tuple, np.ndarray] = "white",
+        edge_color: Union[str, List, Tuple, np.ndarray, None] = None,
         linestyle: str = "solid",
         linewidth: float = 1.5,
         alpha: Union[float, None] = 1.0,
@@ -139,6 +149,11 @@ class Contour:
             # Wrap the RGBA color in an array to index the first element
             color_rgba = to_rgba(color=color, alpha=alpha, num_repeats=1)
 
+        edge_color_rgba = (
+            to_rgba(color=edge_color, alpha=alpha, num_repeats=len(node_groups))
+            if edge_color is not None
+            else None
+        )
         # Iterate over each group of nodes (either sublists or flat list)
         for idx, sublist in enumerate(node_groups):
             # Filter to get node IDs and their coordinates for each sublist
@@ -161,6 +176,7 @@ class Contour:
                 node_coordinates,
                 node_ids,
                 color=color_rgba[idx],
+                edge_color=edge_color_rgba[idx] if edge_color_rgba is not None else None,
                 levels=levels,
                 bandwidth=bandwidth,
                 grid_size=grid_size,
@@ -178,6 +194,7 @@ class Contour:
         bandwidth: float = 0.8,
         grid_size: int = 250,
         color: Union[str, np.ndarray] = "white",
+        edge_color: Union[str, np.ndarray, None] = None,
         linestyle: str = "solid",
         linewidth: float = 1.5,
         fill_alpha: Union[float, None] = 0.2,
@@ -263,7 +280,7 @@ class Contour:
             )
 
         # Plot the base contour line with the specified RGBA alpha for transparency
-        base_contour_color = [color]
+        base_contour_color = [edge_color if edge_color is not None else color]
         base_contour_level = [contour_levels[0]]
         ax.contour(
             x,
