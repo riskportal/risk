@@ -1750,3 +1750,86 @@ def test_plot_subcontour_edge_color(risk_obj, graph):
         edge_color="red",
     )
     plt.close("all")
+
+
+# --- ids_to_labels wrapping ---
+
+
+def test_validate_and_update_domain_ids_to_labels_wraps_long_string(graph):
+    from risk.network.plotter._labels import Labels, TERM_DELIMITER
+
+    domain_ids = [
+        d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
+    ]
+    assert len(domain_ids) >= 1
+    d0 = domain_ids[0]
+
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    dummy_centroid = np.array([0.0, 0.0])
+    filtered_domain_terms = {}
+    filtered_domain_centroids = {}
+    valid_indices = []
+
+    try:
+        result = labeler._validate_and_update_domain(
+            domain_id=d0,
+            domain_centroid=dummy_centroid,
+            domain_id_to_centroid_map={d0: dummy_centroid},
+            ids_to_labels={d0: "alpha beta gamma delta epsilon"},
+            words_to_omit=None,
+            min_label_lines=1,
+            max_label_lines=int(1e6),
+            min_chars_per_line=1,
+            max_chars_per_line=7,  # "alpha" (5) fits; "alpha beta" (10) does not
+            filtered_domain_centroids=filtered_domain_centroids,
+            filtered_domain_terms=filtered_domain_terms,
+            valid_indices=valid_indices,
+        )
+        assert result is True
+        lines = filtered_domain_terms[d0].split(TERM_DELIMITER)
+        assert len(lines) > 1
+        assert all(len(line) <= 7 for line in lines)
+    finally:
+        plt.close("all")
+
+
+def test_validate_and_update_domain_ids_to_labels_preserves_term_delimiter(graph):
+    from risk.network.plotter._labels import Labels, TERM_DELIMITER
+
+    domain_ids = [
+        d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
+    ]
+    assert len(domain_ids) >= 1
+    d0 = domain_ids[0]
+
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    dummy_centroid = np.array([0.0, 0.0])
+    filtered_domain_terms = {}
+    filtered_domain_centroids = {}
+    valid_indices = []
+
+    label_with_delimiter = f"gene{TERM_DELIMITER}expression"
+
+    try:
+        result = labeler._validate_and_update_domain(
+            domain_id=d0,
+            domain_centroid=dummy_centroid,
+            domain_id_to_centroid_map={d0: dummy_centroid},
+            ids_to_labels={d0: label_with_delimiter},
+            words_to_omit=None,
+            min_label_lines=1,
+            max_label_lines=int(1e6),
+            min_chars_per_line=1,
+            max_chars_per_line=int(1e6),
+            filtered_domain_centroids=filtered_domain_centroids,
+            filtered_domain_terms=filtered_domain_terms,
+            valid_indices=valid_indices,
+        )
+        assert result is True
+        assert filtered_domain_terms[d0] == label_with_delimiter
+    finally:
+        plt.close("all")

@@ -577,8 +577,15 @@ class Labels:
             bool: True if the domain is valid and added to the filtered dictionaries, False otherwise.
         """
         if ids_to_labels and domain_id in ids_to_labels:
-            # Directly use custom labels without filtering
-            domain_terms = ids_to_labels[domain_id]
+            raw_label = ids_to_labels[domain_id]
+            if TERM_DELIMITER in raw_label:
+                domain_terms = raw_label
+            else:
+                domain_terms = self._combine_words(
+                    raw_label.split(),
+                    max_chars_per_line,
+                    max_label_lines,
+                )
         else:
             # Process the domain terms automatically
             domain_terms = self._process_terms(
