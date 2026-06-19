@@ -598,6 +598,10 @@ class Labels:
             if num_domain_lines < min_label_lines:
                 return False
 
+            # Skip auto-generated labels that duplicate an already-accepted label
+            if domain_terms in filtered_domain_terms.values():
+                return False
+
         # Store the valid terms and centroids
         filtered_domain_centroids[domain_id] = domain_centroid
         filtered_domain_terms[domain_id] = domain_terms

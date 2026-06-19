@@ -1614,3 +1614,68 @@ def test_get_annotated_label_and_contour_colors_length(risk_obj, graph):
     assert all(len(c) == 4 for c in label_colors)
     assert all(len(c) == 4 for c in contour_colors)
     plt.close("all")
+
+
+def test_validate_and_update_domain_suppresses_duplicate_auto_label(graph):
+    """
+    When two domains resolve to the same auto-generated label string,
+    _validate_and_update_domain must accept the first and reject the second.
+    """
+    from risk.network.plotter._labels import Labels
+
+    # Domain IDs that exist in both maps (terms map supplies the label; node map proves they are real domains)
+    domain_ids = [
+        d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
+    ]
+    assert len(domain_ids) >= 2, "fixture must supply at least two domains"
+    d0, d1 = domain_ids[0], domain_ids[1]
+
+    shared_term = "shared duplicate term"
+    saved_d0 = graph.domain_id_to_domain_terms_map[d0]
+    saved_d1 = graph.domain_id_to_domain_terms_map[d1]
+    graph.domain_id_to_domain_terms_map[d0] = shared_term
+    graph.domain_id_to_domain_terms_map[d1] = shared_term
+
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    dummy_centroid = np.array([0.0, 0.0])
+    domain_id_to_centroid_map = {d0: dummy_centroid, d1: dummy_centroid}
+
+    filtered_domain_terms = {}
+    filtered_domain_centroids = {}
+    valid_indices = []
+    kwargs = dict(
+        domain_id_to_centroid_map=domain_id_to_centroid_map,
+        ids_to_labels=None,
+        words_to_omit=None,
+        min_label_lines=1,
+        max_label_lines=int(1e6),
+        min_chars_per_line=1,
+        max_chars_per_line=int(1e6),
+        filtered_domain_centroids=filtered_domain_centroids,
+        filtered_domain_terms=filtered_domain_terms,
+        valid_indices=valid_indices,
+    )
+
+    try:
+        assert (
+            labeler._validate_and_update_domain(
+                domain_id=d0, domain_centroid=dummy_centroid, **kwargs
+            )
+            is True
+        )
+        assert (
+            labeler._validate_and_update_domain(
+                domain_id=d1, domain_centroid=dummy_centroid, **kwargs
+            )
+            is False
+        )
+        assert len(filtered_domain_terms) == 1
+        assert len(filtered_domain_centroids) == 1
+        assert len(valid_indices) == 1
+        assert len(set(filtered_domain_terms.values())) == 1
+    finally:
+        graph.domain_id_to_domain_terms_map[d0] = saved_d0
+        graph.domain_id_to_domain_terms_map[d1] = saved_d1
+        plt.close("all")
