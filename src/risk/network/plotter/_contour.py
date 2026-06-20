@@ -36,6 +36,7 @@ class Contour:
         bandwidth: float = 0.8,
         grid_size: int = 250,
         color: Union[str, List, Tuple, np.ndarray] = "white",
+        edge_color: Union[str, List, Tuple, np.ndarray, None] = None,
         linestyle: str = "solid",
         linewidth: float = 1.5,
         alpha: Union[float, None] = 1.0,
@@ -50,6 +51,8 @@ class Contour:
             grid_size (int, optional): Resolution of the grid for KDE. Higher values create finer contours. Defaults to 250.
             color (str, List, Tuple, or np.ndarray, optional): Color of the contours. Can be a single color or an array of colors.
                 Defaults to "white".
+            edge_color (str, List, Tuple, np.ndarray, or None, optional): Color for the contour outlines. When provided,
+                overrides the fill color for the outline. Defaults to None.
             linestyle (str, optional): Line style for the contours. Defaults to "solid".
             linewidth (float, optional): Line width for the contours. Defaults to 1.5.
             alpha (float, None, optional): Transparency level of the contour lines. If provided, it overrides any existing alpha values
@@ -75,6 +78,13 @@ class Contour:
         color_rgba = to_rgba(
             color=color, alpha=alpha, num_repeats=len(self.graph.domain_id_to_node_ids_map)
         )
+        edge_color_rgba = (
+            to_rgba(
+                color=edge_color, alpha=alpha, num_repeats=len(self.graph.domain_id_to_node_ids_map)
+            )
+            if edge_color is not None
+            else None
+        )
         # Extract node coordinates from the network graph
         node_coordinates = self.graph.node_coordinates
         # Draw contours for each domain in the network
@@ -87,6 +97,7 @@ class Contour:
                     node_coordinates,
                     node_ids,
                     color=color_rgba[idx],
+                    edge_color=edge_color_rgba[idx] if edge_color_rgba is not None else None,
                     levels=levels,
                     bandwidth=bandwidth,
                     grid_size=grid_size,
@@ -102,6 +113,7 @@ class Contour:
         bandwidth: float = 0.8,
         grid_size: int = 250,
         color: Union[str, List, Tuple, np.ndarray] = "white",
+        edge_color: Union[str, List, Tuple, np.ndarray, None] = None,
         linestyle: str = "solid",
         linewidth: float = 1.5,
         alpha: Union[float, None] = 1.0,
@@ -117,6 +129,8 @@ class Contour:
             grid_size (int, optional): Resolution of the grid for KDE. Higher values create finer contours. Defaults to 250.
             color (str, List, Tuple, or np.ndarray, optional): Color of the contour. Can be a string (e.g., 'white') or RGBA array.
                 Can be a single color or an array of colors. Defaults to "white".
+            edge_color (str, List, Tuple, np.ndarray, or None, optional): Color for the contour outlines. When provided,
+                overrides the fill color for the outline. Defaults to None.
             linestyle (str, optional): Line style for the contour. Defaults to "solid".
             linewidth (float, optional): Line width for the contour. Defaults to 1.5.
             alpha (float, None, optional): Transparency level of the contour lines. If provided, it overrides any existing alpha values
@@ -139,6 +153,11 @@ class Contour:
             # Wrap the RGBA color in an array to index the first element
             color_rgba = to_rgba(color=color, alpha=alpha, num_repeats=1)
 
+        edge_color_rgba = (
+            to_rgba(color=edge_color, alpha=alpha, num_repeats=len(node_groups))
+            if edge_color is not None
+            else None
+        )
         # Iterate over each group of nodes (either sublists or flat list)
         for idx, sublist in enumerate(node_groups):
             # Filter to get node IDs and their coordinates for each sublist
@@ -161,6 +180,7 @@ class Contour:
                 node_coordinates,
                 node_ids,
                 color=color_rgba[idx],
+                edge_color=edge_color_rgba[idx] if edge_color_rgba is not None else None,
                 levels=levels,
                 bandwidth=bandwidth,
                 grid_size=grid_size,
@@ -178,6 +198,7 @@ class Contour:
         bandwidth: float = 0.8,
         grid_size: int = 250,
         color: Union[str, np.ndarray] = "white",
+        edge_color: Union[str, np.ndarray, None] = None,
         linestyle: str = "solid",
         linewidth: float = 1.5,
         fill_alpha: Union[float, None] = 0.2,
@@ -193,6 +214,8 @@ class Contour:
             bandwidth (float, optional): Bandwidth for the KDE. Controls smoothness. Defaults to 0.8.
             grid_size (int, optional): Grid resolution for the KDE. Higher values yield finer contours. Defaults to 250.
             color (str or np.ndarray): Color for the contour. Can be a string or RGBA array. Defaults to "white".
+            edge_color (str or np.ndarray, optional): Color for the contour outline. When None, the fill color is used.
+                Defaults to None.
             linestyle (str, optional): Line style for the contour. Defaults to "solid".
             linewidth (float, optional): Line width for the contour. Defaults to 1.5.
             fill_alpha (float, None, optional): Transparency level for the contour fill. If provided, it overrides any existing
@@ -263,7 +286,7 @@ class Contour:
             )
 
         # Plot the base contour line with the specified RGBA alpha for transparency
-        base_contour_color = [color]
+        base_contour_color = [edge_color if edge_color is not None else color]
         base_contour_level = [contour_levels[0]]
         ax.contour(
             x,

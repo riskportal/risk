@@ -8,6 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pytest
 
+from risk.network.plotter._labels import Labels, TERM_DELIMITER
+from risk.network.plotter._utils.colors import to_rgba
+
 # NOTE: Displaying plots during testing can cause the program to hang. Avoid including plot displays in tests.
 matplotlib.use("Agg")  # non-GUI backend
 
@@ -1614,3 +1617,264 @@ def test_get_annotated_label_and_contour_colors_length(risk_obj, graph):
     assert all(len(c) == 4 for c in label_colors)
     assert all(len(c) == 4 for c in contour_colors)
     plt.close("all")
+
+
+def test_validate_and_update_domain_suppresses_duplicate_auto_label(graph):
+    """
+    Test that _validate_and_update_domain rejects an auto-generated label that duplicates one already accepted.
+
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
+    # Domain IDs that exist in both maps (terms map supplies the label; node map proves they are real domains)
+    domain_ids = [
+        d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
+    ]
+    assert len(domain_ids) >= 2, "fixture must supply at least two domains"
+    d0, d1 = domain_ids[0], domain_ids[1]
+
+    shared_term = "shared duplicate term"
+    saved_d0 = graph.domain_id_to_domain_terms_map[d0]
+    saved_d1 = graph.domain_id_to_domain_terms_map[d1]
+    graph.domain_id_to_domain_terms_map[d0] = shared_term
+    graph.domain_id_to_domain_terms_map[d1] = shared_term
+
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    dummy_centroid = np.array([0.0, 0.0])
+    domain_id_to_centroid_map = {d0: dummy_centroid, d1: dummy_centroid}
+
+    filtered_domain_terms = {}
+    filtered_domain_centroids = {}
+    valid_indices = []
+    kwargs = dict(
+        domain_id_to_centroid_map=domain_id_to_centroid_map,
+        ids_to_labels=None,
+        words_to_omit=None,
+        min_label_lines=1,
+        max_label_lines=int(1e6),
+        min_chars_per_line=1,
+        max_chars_per_line=int(1e6),
+        filtered_domain_centroids=filtered_domain_centroids,
+        filtered_domain_terms=filtered_domain_terms,
+        valid_indices=valid_indices,
+    )
+
+    try:
+        assert (
+            labeler._validate_and_update_domain(
+                domain_id=d0, domain_centroid=dummy_centroid, **kwargs
+            )
+            is True
+        )
+        assert (
+            labeler._validate_and_update_domain(
+                domain_id=d1, domain_centroid=dummy_centroid, **kwargs
+            )
+            is False
+        )
+        assert len(filtered_domain_terms) == 1
+        assert len(filtered_domain_centroids) == 1
+        assert len(valid_indices) == 1
+        assert len(set(filtered_domain_terms.values())) == 1
+    finally:
+        graph.domain_id_to_domain_terms_map[d0] = saved_d0
+        graph.domain_id_to_domain_terms_map[d1] = saved_d1
+        plt.close("all")
+
+
+def test_to_rgba_255_rgb():
+    """Test that an integer RGB tuple in [0, 255] is normalized to [0, 1] RGBA."""
+    result = to_rgba((255, 0, 0))
+    np.testing.assert_allclose(result, [1.0, 0.0, 0.0, 1.0], atol=1e-6)
+
+
+def test_to_rgba_255_rgba():
+    """Test that an integer RGBA tuple in [0, 255] is normalized to [0, 1] RGBA."""
+    result = to_rgba((0, 128, 255, 200))
+    np.testing.assert_allclose(result, [0.0, 128 / 255, 1.0, 200 / 255], atol=1e-6)
+
+
+def test_to_rgba_01_float_unchanged():
+    """Test that a float RGB tuple already in [0, 1] is passed through without normalization."""
+    result = to_rgba((0.5, 0.2, 0.8))
+    np.testing.assert_allclose(result, [0.5, 0.2, 0.8, 1.0], atol=1e-6)
+
+
+def test_to_rgba_255_alpha_override():
+    """Test that the alpha parameter overrides the alpha channel when converting a 0-255 RGBA color."""
+    result = to_rgba((255, 0, 0, 200), alpha=0.3)
+    np.testing.assert_allclose(result[:3], [1.0, 0.0, 0.0], atol=1e-6)
+    assert result[3] == pytest.approx(0.3)
+
+
+def test_to_rgba_255_with_channel_one():
+    """Test that a 0-255 RGB tuple containing a channel value of 1 is interpreted as 8-bit, not 0-1 float."""
+    result = to_rgba((255, 1, 255))
+    np.testing.assert_allclose(result, [1.0, 1 / 255, 1.0, 1.0], atol=1e-6)
+
+
+def test_to_rgba_out_of_255_raises():
+    """Test that a numeric color with a channel value exceeding 255 raises ValueError."""
+    with pytest.raises(ValueError):
+        to_rgba((0, 0, 300))
+
+
+def test_to_rgba_float_out_of_range_raises():
+    """Test that a float RGB color with a channel value above 1.0 raises ValueError."""
+    with pytest.raises(ValueError):
+        to_rgba((1.5, 0.5, 0.5))
+
+
+def test_plot_contours_edge_color(risk_obj, graph):
+    """
+    Test that plot_contours accepts an edge_color argument without raising.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which contours will be plotted.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    plotter.plot_contours(edge_color="red")
+    plt.close("all")
+
+
+def test_plot_subcontour_edge_color(risk_obj, graph):
+    """
+    Test that plot_subcontour accepts an edge_color argument without raising.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which contours will be plotted.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    plotter.plot_subcontour(
+        nodes=["LSM1", "LSM2", "LSM3", "LSM4", "LSM5", "LSM6", "LSM7", "PAT1"],
+        edge_color="red",
+    )
+    plt.close("all")
+
+
+def test_validate_and_update_domain_ids_to_labels_wraps_long_string(graph):
+    """
+    Test that a long ids_to_labels string is split across multiple lines according to max_chars_per_line.
+
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
+    domain_ids = [
+        d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
+    ]
+    assert len(domain_ids) >= 1
+    d0 = domain_ids[0]
+
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    dummy_centroid = np.array([0.0, 0.0])
+    filtered_domain_terms = {}
+    filtered_domain_centroids = {}
+    valid_indices = []
+
+    try:
+        result = labeler._validate_and_update_domain(
+            domain_id=d0,
+            domain_centroid=dummy_centroid,
+            domain_id_to_centroid_map={d0: dummy_centroid},
+            ids_to_labels={d0: "alpha beta gamma delta epsilon"},
+            words_to_omit=None,
+            min_label_lines=1,
+            max_label_lines=int(1e6),
+            min_chars_per_line=1,
+            max_chars_per_line=7,  # "alpha" (5) fits; "alpha beta" (10) does not
+            filtered_domain_centroids=filtered_domain_centroids,
+            filtered_domain_terms=filtered_domain_terms,
+            valid_indices=valid_indices,
+        )
+        assert result is True
+        lines = filtered_domain_terms[d0].split(TERM_DELIMITER)
+        assert len(lines) > 1
+        assert all(len(line) <= 7 for line in lines)
+    finally:
+        plt.close("all")
+
+
+def test_validate_and_update_domain_ids_to_labels_preserves_term_delimiter(graph):
+    """
+    Test that an ids_to_labels value containing TERM_DELIMITER is stored verbatim without re-wrapping.
+
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
+    domain_ids = [
+        d for d in graph.domain_id_to_domain_terms_map if d in graph.domain_id_to_node_ids_map
+    ]
+    assert len(domain_ids) >= 1
+    d0 = domain_ids[0]
+
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    dummy_centroid = np.array([0.0, 0.0])
+    filtered_domain_terms = {}
+    filtered_domain_centroids = {}
+    valid_indices = []
+
+    label_with_delimiter = f"gene{TERM_DELIMITER}expression"
+
+    try:
+        result = labeler._validate_and_update_domain(
+            domain_id=d0,
+            domain_centroid=dummy_centroid,
+            domain_id_to_centroid_map={d0: dummy_centroid},
+            ids_to_labels={d0: label_with_delimiter},
+            words_to_omit=None,
+            min_label_lines=1,
+            max_label_lines=int(1e6),
+            min_chars_per_line=1,
+            max_chars_per_line=int(1e6),
+            filtered_domain_centroids=filtered_domain_centroids,
+            filtered_domain_terms=filtered_domain_terms,
+            valid_indices=valid_indices,
+        )
+        assert result is True
+        assert filtered_domain_terms[d0] == label_with_delimiter
+    finally:
+        plt.close("all")
+
+
+def test_apply_str_transformation_upper(graph):
+    """
+    Test that _apply_str_transformation converts each label string to uppercase.
+
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    try:
+        result = labeler._apply_str_transformation(
+            words=["alpha beta", "gamma"], transformation="upper"
+        )
+        assert result == ["ALPHA BETA", "GAMMA"]
+    finally:
+        plt.close("all")
+
+
+def test_apply_str_transformation_deduplicates_after_transform(graph):
+    """
+    Test that _apply_str_transformation removes duplicates that arise after case transformation.
+
+    Args:
+        graph: The graph object used to initialize the Labels instance.
+    """
+    _, ax = plt.subplots()
+    labeler = Labels(graph=graph, ax=ax)
+
+    try:
+        result = labeler._apply_str_transformation(words=["alpha", "ALPHA"], transformation="upper")
+        assert result == ["ALPHA"]
+    finally:
+        plt.close("all")

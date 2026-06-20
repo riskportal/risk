@@ -88,9 +88,9 @@ class Labels:
             overlay_ids (bool, optional): Whether to overlay domain IDs in the center of the centroids. Defaults to False.
             ids_to_keep (List, Tuple, np.ndarray, or None, optional): IDs of domains that must be labeled. To discover domain IDs,
                 you can set `overlay_ids=True`. Defaults to None.
-            ids_to_labels (Dict[int, str], optional): A dictionary mapping domain IDs to custom labels (strings). The labels should be
-                space-separated words. If provided, the custom labels will replace the default domain terms. To discover domain IDs, you
-                can set `overlay_ids=True`. Defaults to None.
+            ids_to_labels (Dict[int, str], optional): A dictionary mapping domain IDs to custom labels (strings). Labels are wrapped
+                to respect `max_chars_per_line` and `max_label_lines`. To supply exact multi-line formatting, join lines with "::::"
+                (e.g., "RNA splicing::::regulation"); strings containing "::::" are stored verbatim. Defaults to None.
 
         Raises:
             ValueError: If the number of provided `ids_to_keep` exceeds `max_labels`.
@@ -577,8 +577,16 @@ class Labels:
             bool: True if the domain is valid and added to the filtered dictionaries, False otherwise.
         """
         if ids_to_labels and domain_id in ids_to_labels:
-            # Directly use custom labels without filtering
-            domain_terms = ids_to_labels[domain_id]
+            raw_label = ids_to_labels[domain_id]
+            if TERM_DELIMITER in raw_label:
+                # Preserve explicit TERM_DELIMITER formatting supplied by the caller
+                domain_terms = raw_label
+            else:
+                domain_terms = self._combine_words(
+                    raw_label.split(),
+                    max_chars_per_line,
+                    max_label_lines,
+                )
         else:
             # Process the domain terms automatically
             domain_terms = self._process_terms(
@@ -596,6 +604,10 @@ class Labels:
             num_domain_lines = len(domain_terms.split(TERM_DELIMITER))
             # Check if the number of lines meets the minimum requirement
             if num_domain_lines < min_label_lines:
+                return False
+
+            # Skip auto-generated labels that duplicate an already-accepted label
+            if domain_terms in filtered_domain_terms.values():
                 return False
 
         # Store the valid terms and centroids

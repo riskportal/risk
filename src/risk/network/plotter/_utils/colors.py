@@ -360,7 +360,8 @@ def to_rgba(
 
     Args:
         color (str, List, Tuple, np.ndarray, None): The color(s) to convert. Can be a string (e.g., 'red'), a list or tuple of RGB/RGBA values,
-            or an `np.ndarray` of colors. If None, the function will return an array of white (RGBA) colors.
+            or an `np.ndarray` of colors. Integer values in [0, 255] are accepted and normalized to [0, 1] automatically.
+            If None, the function will return an array of white (RGBA) colors.
         alpha (float, None, optional): Alpha value (transparency) to apply. If provided, it overrides any existing alpha values found
             in color.
         num_repeats (int, None, optional): If provided, the color(s) will be repeated this many times. Defaults to None.
@@ -374,7 +375,7 @@ def to_rgba(
 
     def convert_to_rgba(c: Union[str, List, Tuple, np.ndarray]) -> np.ndarray:
         """
-        Convert a single color to RGBA format, handling strings, hex, and RGB/RGBA lists.
+        Convert a single color to RGBA format, handling strings, hex, and RGB/RGBA lists. Integer sequences in [0, 255] are normalized to [0, 1].
 
         Args:
             c (str, List, Tuple, np.ndarray): The color to convert.
@@ -387,8 +388,18 @@ def to_rgba(
             # Convert color names or hex values (e.g., 'red', '#FF5733') to RGBA
             rgba = np.array(mcolors.to_rgba(c))
         elif isinstance(c, (list, tuple, np.ndarray)) and len(c) in [3, 4]:
-            # Convert RGB (3) or RGBA (4) values to RGBA format
-            rgba = np.array(mcolors.to_rgba(c))
+            c_arr = np.asarray(c, dtype=float)
+            if c_arr.max() <= 1.0:
+                # All channels in [0, 1]: pass through unchanged
+                rgba = np.array(mcolors.to_rgba(tuple(c_arr)))
+            elif np.all(c_arr == np.floor(c_arr)) and np.all((c_arr >= 0) & (c_arr <= 255)):
+                # All integer-valued channels in [0, 255]: normalize to [0, 1]
+                rgba = np.array(mcolors.to_rgba(tuple(c_arr / 255.0)))
+            else:
+                raise ValueError(
+                    f"Invalid color {list(c)!r}: numeric RGB/RGBA values must be all floats "
+                    f"in [0, 1] or all integers in [0, 255]. Got: {list(c_arr)}"
+                )
         else:
             raise ValueError(
                 f"Invalid color format: {c}. Must be a valid string or RGB/RGBA sequence."
