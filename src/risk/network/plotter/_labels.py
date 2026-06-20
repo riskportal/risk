@@ -88,9 +88,9 @@ class Labels:
             overlay_ids (bool, optional): Whether to overlay domain IDs in the center of the centroids. Defaults to False.
             ids_to_keep (List, Tuple, np.ndarray, or None, optional): IDs of domains that must be labeled. To discover domain IDs,
                 you can set `overlay_ids=True`. Defaults to None.
-            ids_to_labels (Dict[int, str], optional): A dictionary mapping domain IDs to custom labels (strings). The labels should be
-                space-separated words. If provided, the custom labels will replace the default domain terms. To discover domain IDs, you
-                can set `overlay_ids=True`. Defaults to None.
+            ids_to_labels (Dict[int, str], optional): A dictionary mapping domain IDs to custom labels (strings). Labels are wrapped
+                to respect `max_chars_per_line` and `max_label_lines`. To supply exact multi-line formatting, join lines with "::::"
+                (e.g., "RNA splicing::::regulation"); strings containing "::::" are stored verbatim. Defaults to None.
 
         Raises:
             ValueError: If the number of provided `ids_to_keep` exceeds `max_labels`.
