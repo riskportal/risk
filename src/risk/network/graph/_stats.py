@@ -28,7 +28,8 @@ def calculate_significance_matrices(
 
     Returns:
         Dict[str, Any]: Dictionary containing the enrichment matrix, binary significance matrix,
-            and the matrix of significant enrichment values.
+            matrix of significant enrichment values, FDR-corrected q-value matrices, and the
+            enrichment/depletion selection mask.
     """
     if fdr_cutoff < 1.0:
         # Apply FDR correction to depletion p-values
@@ -52,11 +53,14 @@ def calculate_significance_matrices(
             depletion_pvals, pval_cutoff=pval_cutoff
         )
         depletion_matrix = depletion_pvals
+        # No FDR correction is applied in this mode, so no q-values exist to report
+        depletion_qvals = None
 
         enrichment_alpha_threshold_matrix = _compute_threshold_matrix(
             enrichment_pvals, pval_cutoff=pval_cutoff
         )
         enrichment_matrix = enrichment_pvals
+        enrichment_qvals = None
 
     # Floor exact zeros to avoid infinities from -log10(0) in downstream magnitude scaling.
     p_floor = np.finfo(float).eps
@@ -64,7 +68,11 @@ def calculate_significance_matrices(
     log_enrichment_matrix = -np.log10(np.clip(enrichment_matrix, p_floor, 1.0))
 
     # Select the appropriate significance matrices based on the specified tail
-    significance_matrix, significant_binary_significance_matrix = _select_significance_matrices(
+    (
+        significance_matrix,
+        significant_binary_significance_matrix,
+        enrichment_selection_matrix,
+    ) = _select_significance_matrices(
         tail,
         log_depletion_matrix,
         depletion_alpha_threshold_matrix,
@@ -81,6 +89,9 @@ def calculate_significance_matrices(
         "significance_matrix": significance_matrix,
         "significant_significance_matrix": significant_significance_matrix,
         "significant_binary_significance_matrix": significant_binary_significance_matrix,
+        "enrichment_qvals": enrichment_qvals,
+        "depletion_qvals": depletion_qvals,
+        "enrichment_selection_matrix": enrichment_selection_matrix,
     }
 
 
@@ -102,7 +113,9 @@ def _select_significance_matrices(
         enrichment_alpha_threshold_matrix (np.ndarray): Alpha threshold matrix for enrichment significance.
 
     Returns:
-        tuple: A tuple containing the selected enrichment matrix and binary significance matrix.
+        tuple: A tuple containing the selected enrichment matrix, binary significance matrix, and
+            a boolean mask indicating whether enrichment (True) or depletion (False) was selected
+            per cell.
 
     Raises:
         ValueError: If the provided tail type is not 'left', 'right', or 'both'.
@@ -114,17 +127,21 @@ def _select_significance_matrices(
         # Select depletion matrix and corresponding alpha threshold for left-tail analysis
         significance_matrix = -log_depletion_matrix
         alpha_threshold_matrix = depletion_alpha_threshold_matrix
+        enrichment_selection_matrix = np.zeros(log_depletion_matrix.shape, dtype=bool)
     elif tail == "right":
         # Select enrichment matrix and corresponding alpha threshold for right-tail analysis
         significance_matrix = log_enrichment_matrix
         alpha_threshold_matrix = enrichment_alpha_threshold_matrix
+        enrichment_selection_matrix = np.ones(log_enrichment_matrix.shape, dtype=bool)
     elif tail == "both":
         # Select the matrix with the highest absolute values while preserving the sign
+        depletion_selected = np.abs(log_depletion_matrix) >= np.abs(log_enrichment_matrix)
         significance_matrix = np.where(
-            np.abs(log_depletion_matrix) >= np.abs(log_enrichment_matrix),
+            depletion_selected,
             -log_depletion_matrix,
             log_enrichment_matrix,
         )
+        enrichment_selection_matrix = ~depletion_selected
         # Combine alpha thresholds using a logical OR operation
         alpha_threshold_matrix = np.logical_or(
             depletion_alpha_threshold_matrix, enrichment_alpha_threshold_matrix
@@ -137,7 +154,7 @@ def _select_significance_matrices(
     significant_binary_significance_matrix = np.zeros(alpha_threshold_matrix.shape)
     significant_binary_significance_matrix[valid_idxs] = alpha_threshold_matrix[valid_idxs]
 
-    return significance_matrix, significant_binary_significance_matrix
+    return significance_matrix, significant_binary_significance_matrix, enrichment_selection_matrix
 
 
 def _compute_threshold_matrix(

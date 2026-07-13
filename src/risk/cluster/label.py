@@ -4,7 +4,7 @@ risk/cluster/label
 """
 
 from itertools import product
-from typing import Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -37,7 +37,7 @@ def define_domains(
     linkage_method: str,
     linkage_metric: str,
     linkage_threshold: Union[float, str],
-) -> pd.DataFrame:
+) -> Tuple[pd.DataFrame, Dict[int, Dict[int, List[Tuple[int, str, float]]]]]:
     """
     Define domains and assign nodes to these domains based on their significance scores and clustering,
     handling errors by assigning unique domains when clustering fails.
@@ -51,7 +51,9 @@ def define_domains(
         linkage_threshold (float, str): The threshold for clustering. Choose "auto" to optimize.
 
     Returns:
-        pd.DataFrame: DataFrame with the primary domain for each node.
+        Tuple[pd.DataFrame, Dict[int, Dict[int, List[Tuple[int, str, float]]]]]:
+            - DataFrame with the primary domain for each node.
+            - Nonzero contributing terms per node and domain, sorted descending by absolute significance.
 
     Raises:
         ValueError: If any clustering argument is invalid.
@@ -151,6 +153,8 @@ def define_domains(
             names=["annotation", "domain"],
         ),
     )
+    # Capture nonzero contributing terms before domain-level summation collapses term identity
+    contributing_terms = _rank_contributing_terms(node_to_significance, top_annotation)
     node_to_domain = node_to_significance.T.groupby(level="domain").sum().T
 
     # Find the dominant domain per node using absolute significance:
@@ -167,7 +171,7 @@ def define_domains(
     # Assign primary domain
     node_to_domain["primary_domain"] = t_idxmax
 
-    return node_to_domain
+    return node_to_domain, contributing_terms
 
 
 def trim_domains(
@@ -244,6 +248,44 @@ def trim_domains(
         ~trimmed_domains_matrix.index.isin(invalid_domain_ids)
     ]
     return valid_domains, valid_trimmed_domains_matrix
+
+
+def _rank_contributing_terms(
+    node_to_significance: pd.DataFrame,
+    top_annotation: pd.DataFrame,
+) -> Dict[int, Dict[int, List[Tuple[int, str, float]]]]:
+    """
+    Rank each node's nonzero contributing annotation terms within each domain by masked significance.
+
+    Args:
+        node_to_significance (pd.DataFrame): Node-by-term significance matrix with a MultiIndex
+            (annotation, domain) column structure, prior to domain-level summation.
+        top_annotation (pd.DataFrame): Top annotation data, used to resolve annotation term
+            indices to their full term strings.
+
+    Returns:
+        Dict[int, Dict[int, List[Tuple[int, str, float]]]]: Mapping of node ID to domain ID to a
+            list of (term index, term string, masked significance) tuples with nonzero
+            significance, sorted descending by absolute significance.
+    """
+    contributing_terms: Dict[int, Dict[int, List[Tuple[int, str, float]]]] = {}
+    for domain_id, domain_group in node_to_significance.T.groupby(level="domain"):
+        term_indices = domain_group.index.get_level_values("annotation")
+        term_strings = top_annotation.loc[term_indices, "full_terms"].tolist()
+        for node_id, node_values in domain_group.items():
+            # Only nonzero terms actually contribute to this node's domain association
+            nonzero_terms = [
+                (term_idx, term_str, value)
+                for term_idx, term_str, value in zip(term_indices, term_strings, node_values)
+                if value != 0
+            ]
+            if not nonzero_terms:
+                continue
+            # Rank by magnitude so depletion (negative) signal sorts consistently with enrichment
+            nonzero_terms.sort(key=lambda term: abs(term[2]), reverse=True)
+            contributing_terms.setdefault(node_id, {})[int(domain_id)] = nonzero_terms
+
+    return contributing_terms
 
 
 def _validate_clustering_args(
