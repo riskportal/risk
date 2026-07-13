@@ -527,6 +527,67 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
     assert isinstance(graph.summary, Summary), "Summary should be a Summary object"
 
 
+def test_load_graph_threads_fdr_values_into_node_domain_metadata(
+    risk_obj, cytoscape_network, json_annotation
+):
+    """
+    Ensure a real load_graph(...) run with FDR correction enabled (fdr_cutoff < 1.0) threads a
+    genuine, non-None float FDR value into node_id_to_domain_ids_and_significance_map. This
+    guards against a plumbing regression where q-values are computed but never reach Graph.
+
+    Args:
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
+        json_annotation: The JSON annotation associated with the network.
+    """
+    # === Cluster and Stats ===
+    clusters = risk_obj.cluster_leiden(
+        network=cytoscape_network,
+        fraction_shortest_edges=0.75,
+        resolution=1.0,
+        random_seed=887,
+    )
+    stats_results = risk_obj.run_permutation(
+        annotation=json_annotation,
+        clusters=clusters,
+        null_distribution="network",
+        score_metric="stdev",
+        num_permutations=20,
+        random_seed=887,
+        max_workers=1,
+    )
+    # fdr_cutoff < 1.0 (the load_graph default) enables real FDR correction, unlike the
+    # fdr_cutoff=1.0 used elsewhere in this file.
+    graph = risk_obj.load_graph(
+        network=cytoscape_network,
+        annotation=json_annotation,
+        stats_results=stats_results,
+        tail="right",
+        pval_cutoff=0.05,
+        fdr_cutoff=0.9999,
+        display_prune_threshold=0.1,
+        linkage_criterion="distance",
+        linkage_method="average",
+        linkage_metric="yule",
+        linkage_threshold=0.2,
+        min_cluster_size=5,
+        max_cluster_size=1000,
+    )
+
+    found_float_fdr = False
+    for domain_info in graph.node_id_to_domain_ids_and_significance_map.values():
+        for domain_id, fdr in domain_info["fdrs"].items():
+            if fdr is None:
+                continue
+            assert isinstance(fdr, float)
+            assert domain_id in domain_info["domains"]
+            assert domain_id in domain_info["significances"]
+            assert domain_id in domain_info["terms"]
+            assert domain_id in domain_info["p_values"]
+            found_float_fdr = True
+    assert found_float_fdr, "Expected at least one non-None float FDR under fdr_cutoff < 1.0"
+
+
 def test_load_graph_summary(graph):
     """
     Test loading the graph summary with predefined parameters.
