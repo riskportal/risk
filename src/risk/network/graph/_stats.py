@@ -14,7 +14,7 @@ def calculate_significance_matrices(
     enrichment_pvals: np.ndarray,
     tail: str = "right",
     pval_cutoff: float = 0.05,
-    fdr_cutoff: float = 0.05,
+    fdr_cutoff: float = 1.0,
 ) -> Dict[str, Any]:
     """
     Calculate significance matrices based on p-values and specified tail.
@@ -24,43 +24,30 @@ def calculate_significance_matrices(
         enrichment_pvals (np.ndarray): Matrix of enrichment p-values.
         tail (str, optional): The tail type for significance selection ('left', 'right', 'both'). Defaults to 'right'.
         pval_cutoff (float, optional): Cutoff for p-value significance. Defaults to 0.05.
-        fdr_cutoff (float, optional): Cutoff for FDR significance if applied. Defaults to 0.05.
+        fdr_cutoff (float, optional): Cutoff for FDR significance. BH q-values are always computed;
+            this only thresholds them. Since q-values are bounded by 1.0, a cutoff of 1.0 computes
+            q-values without excluding anything based on FDR. Defaults to 1.0.
 
     Returns:
         Dict[str, Any]: Dictionary containing the enrichment matrix, binary significance matrix,
             matrix of significant enrichment values, FDR-corrected q-value matrices, and the
             enrichment/depletion selection mask.
     """
-    if fdr_cutoff < 1.0:
-        # Apply FDR correction to depletion p-values
-        depletion_qvals = np.apply_along_axis(fdrcorrection, 1, depletion_pvals)[:, 1, :]
-        depletion_alpha_threshold_matrix = _compute_threshold_matrix(
-            depletion_pvals, depletion_qvals, pval_cutoff=pval_cutoff, fdr_cutoff=fdr_cutoff
-        )
-        # Compute the depletion matrix using both q-values and p-values
-        depletion_matrix = (depletion_qvals**2) * (depletion_pvals**0.5)
+    # Apply FDR correction to depletion p-values
+    depletion_qvals = np.apply_along_axis(fdrcorrection, 1, depletion_pvals)[:, 1, :]
+    depletion_alpha_threshold_matrix = _compute_threshold_matrix(
+        depletion_pvals, depletion_qvals, pval_cutoff=pval_cutoff, fdr_cutoff=fdr_cutoff
+    )
+    # Compute the depletion matrix using both q-values and p-values
+    depletion_matrix = (depletion_qvals**2) * (depletion_pvals**0.5)
 
-        # Apply FDR correction to enrichment p-values
-        enrichment_qvals = np.apply_along_axis(fdrcorrection, 1, enrichment_pvals)[:, 1, :]
-        enrichment_alpha_threshold_matrix = _compute_threshold_matrix(
-            enrichment_pvals, enrichment_qvals, pval_cutoff=pval_cutoff, fdr_cutoff=fdr_cutoff
-        )
-        # Compute the enrichment matrix using both q-values and p-values
-        enrichment_matrix = (enrichment_pvals**0.5) * (enrichment_qvals**2)
-    else:
-        # Compute threshold matrices based on p-value cutoffs only
-        depletion_alpha_threshold_matrix = _compute_threshold_matrix(
-            depletion_pvals, pval_cutoff=pval_cutoff
-        )
-        depletion_matrix = depletion_pvals
-        # No FDR correction is applied in this mode, so no q-values exist to report
-        depletion_qvals = None
-
-        enrichment_alpha_threshold_matrix = _compute_threshold_matrix(
-            enrichment_pvals, pval_cutoff=pval_cutoff
-        )
-        enrichment_matrix = enrichment_pvals
-        enrichment_qvals = None
+    # Apply FDR correction to enrichment p-values
+    enrichment_qvals = np.apply_along_axis(fdrcorrection, 1, enrichment_pvals)[:, 1, :]
+    enrichment_alpha_threshold_matrix = _compute_threshold_matrix(
+        enrichment_pvals, enrichment_qvals, pval_cutoff=pval_cutoff, fdr_cutoff=fdr_cutoff
+    )
+    # Compute the enrichment matrix using both q-values and p-values
+    enrichment_matrix = (enrichment_pvals**0.5) * (enrichment_qvals**2)
 
     # Floor exact zeros to avoid infinities from -log10(0) in downstream magnitude scaling.
     p_floor = np.finfo(float).eps

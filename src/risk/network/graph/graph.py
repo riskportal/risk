@@ -52,7 +52,8 @@ class Graph:
             node_domain_pvals (Dict[int, Dict[int, float]], optional): Raw p-value paired to each node's
                 strongest contributing term per domain. Defaults to None.
             node_domain_fdrs (Dict[int, Dict[int, Union[float, None]]], optional): Raw FDR paired to the
-                same term as node_domain_pvals, or None when FDR correction was not applied. Defaults to None.
+                same term as node_domain_pvals. Numeric under normal load_graph usage; None only
+                for direct construction with incomplete or omitted metadata. Defaults to None.
         """
         # Initialize self.network downstream of the other attributes
         # All public attributes can be accessed after initialization
@@ -219,7 +220,8 @@ class Graph:
             node_domain_pvals (Dict[int, Dict[int, float]], optional): Raw p-value paired to each node's
                 strongest contributing term per domain. Defaults to None.
             node_domain_fdrs (Dict[int, Dict[int, Union[float, None]]], optional): Raw FDR paired to the
-                same term as node_domain_pvals, or None when FDR correction was not applied. Defaults to None.
+                same term as node_domain_pvals. Numeric under normal load_graph usage; None only
+                for direct construction with incomplete or omitted metadata. Defaults to None.
 
         Returns:
             Dict[int, Dict]: A dictionary keyed by node ID whose values contain 'domains' holding the list

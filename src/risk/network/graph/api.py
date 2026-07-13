@@ -36,7 +36,7 @@ class GraphAPI:
         stats_results: Dict[str, Any],
         tail: str = "right",
         pval_cutoff: float = 0.01,
-        fdr_cutoff: float = 0.9999,
+        fdr_cutoff: float = 1.0,
         display_prune_threshold: float = 0.0,
         linkage_criterion: str = "distance",
         linkage_method: str = "average",
@@ -54,7 +54,9 @@ class GraphAPI:
             stats_results (Dict[str, Any]): Cluster significance data.
             tail (str, optional): Type of significance tail ("right", "left", "both"). Defaults to "right".
             pval_cutoff (float, optional): p-value cutoff for significance. Defaults to 0.01.
-            fdr_cutoff (float, optional): FDR cutoff for significance. Defaults to 0.9999.
+            fdr_cutoff (float, optional): FDR cutoff for significance. BH q-values are always
+                computed; this only thresholds them. Defaults to 1.0 (permissive; excludes
+                nothing based on FDR).
             display_prune_threshold (float, optional): Display-only pruning based on spatial layout
                 distance that suppresses spatially diffuse or isolated regions in plots. Runs
                 after enrichment and clustering on plotting matrices only, does not use
@@ -238,9 +240,11 @@ class GraphAPI:
             enrichment_pvals (np.ndarray): Raw enrichment p-value matrix [node, term].
             depletion_pvals (np.ndarray): Raw depletion p-value matrix [node, term].
             enrichment_qvals (np.ndarray, optional): FDR-corrected enrichment q-value matrix
-                [node, term]. None when FDR correction was not applied.
+                [node, term]. Always populated by load_graph; None only if called directly
+                without q-values.
             depletion_qvals (np.ndarray, optional): FDR-corrected depletion q-value matrix
-                [node, term]. None when FDR correction was not applied.
+                [node, term]. Always populated by load_graph; None only if called directly
+                without q-values.
             enrichment_selection_matrix (np.ndarray): Boolean matrix [node, term] indicating
                 whether the enrichment (True) or depletion (False) tail was selected for that cell.
 
@@ -248,8 +252,8 @@ class GraphAPI:
             Tuple[Dict[int, Dict[int, List[str]]], Dict[int, Dict[int, float]], Dict[int, Dict[int, Union[float, None]]]]:
                 - Node ID to domain ID to the list of contributing term strings.
                 - Node ID to domain ID to the raw p-value paired to the strongest contributing term.
-                - Node ID to domain ID to the raw FDR paired to that same term, or None when FDR
-                  correction was not applied.
+                - Node ID to domain ID to the raw FDR paired to that same term, numeric under
+                  normal load_graph usage; None only if called directly without q-values.
         """
         node_domain_terms: Dict[int, Dict[int, List[str]]] = {}
         node_domain_pvals: Dict[int, Dict[int, float]] = {}

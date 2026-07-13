@@ -496,9 +496,9 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
                 continue
             assert all(isinstance(term, str) for term in terms)
             assert isinstance(domain_info["p_values"][domain_id], float)
-            assert domain_info["fdrs"][domain_id] is None or isinstance(
-                domain_info["fdrs"][domain_id], float
-            )
+            # BH q-values are always computed regardless of fdr_cutoff, so this fixture's
+            # fdr_cutoff=1.0 (permissive threshold) still yields a real numeric FDR.
+            assert isinstance(domain_info["fdrs"][domain_id], float)
             found_provenance = True
     assert found_provenance, "Expected at least one node-domain association with contributing terms"
 
@@ -531,8 +531,9 @@ def test_load_graph_threads_fdr_values_into_node_domain_metadata(
     risk_obj, cytoscape_network, json_annotation
 ):
     """
-    Ensure a real load_graph(...) run with FDR correction enabled (fdr_cutoff < 1.0) threads a
-    genuine, non-None float FDR value into node_id_to_domain_ids_and_significance_map. This
+    Ensure a real load_graph(...) run threads a genuine, numeric FDR value into
+    node_id_to_domain_ids_and_significance_map, even at the permissive default fdr_cutoff=1.0.
+    BH q-values are always computed regardless of fdr_cutoff, which only thresholds them; this
     guards against a plumbing regression where q-values are computed but never reach Graph.
 
     Args:
@@ -556,15 +557,14 @@ def test_load_graph_threads_fdr_values_into_node_domain_metadata(
         random_seed=887,
         max_workers=1,
     )
-    # fdr_cutoff < 1.0 (the load_graph default) enables real FDR correction, unlike the
-    # fdr_cutoff=1.0 used elsewhere in this file.
+    # fdr_cutoff=1.0 (the load_graph default) is permissive but still computes real q-values.
     graph = risk_obj.load_graph(
         network=cytoscape_network,
         annotation=json_annotation,
         stats_results=stats_results,
         tail="right",
         pval_cutoff=0.05,
-        fdr_cutoff=0.9999,
+        fdr_cutoff=1.0,
         display_prune_threshold=0.1,
         linkage_criterion="distance",
         linkage_method="average",
@@ -585,7 +585,7 @@ def test_load_graph_threads_fdr_values_into_node_domain_metadata(
             assert domain_id in domain_info["terms"]
             assert domain_id in domain_info["p_values"]
             found_float_fdr = True
-    assert found_float_fdr, "Expected at least one non-None float FDR under fdr_cutoff < 1.0"
+    assert found_float_fdr, "Expected at least one non-None float FDR under fdr_cutoff=1.0"
 
 
 def test_load_graph_summary(graph):
