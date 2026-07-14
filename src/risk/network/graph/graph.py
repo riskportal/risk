@@ -4,7 +4,7 @@ risk/network/graph/graph
 """
 
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import networkx as nx
 import numpy as np
@@ -32,6 +32,9 @@ class Graph:
         trimmed_domains: pd.DataFrame,
         node_label_to_node_id_map: Dict[str, Any],
         node_significance_sums: np.ndarray,
+        node_domain_terms: Union[Dict[int, Dict[int, List[str]]], None] = None,
+        node_domain_pvals: Union[Dict[int, Dict[int, float]], None] = None,
+        node_domain_fdrs: Union[Dict[int, Dict[int, Union[float, None]]], None] = None,
     ):
         """
         Initialize the Graph object.
@@ -44,6 +47,13 @@ class Graph:
             trimmed_domains (pd.DataFrame): DataFrame containing trimmed domain data for the network nodes.
             node_label_to_node_id_map (Dict[str, Any]): A dictionary mapping node labels to their corresponding IDs.
             node_significance_sums (np.ndarray): Array containing the significant sums for the nodes.
+            node_domain_terms (Dict[int, Dict[int, List[str]]], optional): Nonzero contributing annotation
+                terms per node and domain, sorted descending by absolute significance. Defaults to None.
+            node_domain_pvals (Dict[int, Dict[int, float]], optional): Raw p-value paired to each node's
+                strongest contributing term per domain. Defaults to None.
+            node_domain_fdrs (Dict[int, Dict[int, Union[float, None]]], optional): Raw FDR paired to the
+                same term as node_domain_pvals. Numeric under normal load_graph usage; None only
+                for direct construction with incomplete or omitted metadata. Defaults to None.
         """
         # Initialize self.network downstream of the other attributes
         # All public attributes can be accessed after initialization
@@ -55,7 +65,9 @@ class Graph:
             trimmed_domains
         )
         self.node_id_to_domain_ids_and_significance_map = (
-            self._create_node_id_to_domain_ids_and_significances(domains)
+            self._create_node_id_to_domain_ids_and_significances(
+                domains, node_domain_terms, node_domain_pvals, node_domain_fdrs
+            )
         )
         self.node_id_to_node_label_map = {v: k for k, v in node_label_to_node_id_map.items()}
         self.node_label_to_significance_map = dict(
@@ -107,6 +119,10 @@ class Graph:
             if domain_id in domain_info["domains"]:
                 domain_info["domains"].remove(domain_id)
                 domain_info["significances"].pop(domain_id)
+                # Provenance dicts may be empty in degraded construction cases, so pop safely
+                domain_info["terms"].pop(domain_id, None)
+                domain_info["p_values"].pop(domain_id, None)
+                domain_info["fdrs"].pop(domain_id, None)
 
         self.summary.clear_cache()
         return node_labels
@@ -187,7 +203,11 @@ class Graph:
         return domain_info_map
 
     def _create_node_id_to_domain_ids_and_significances(
-        self, domains: pd.DataFrame
+        self,
+        domains: pd.DataFrame,
+        node_domain_terms: Union[Dict[int, Dict[int, List[str]]], None] = None,
+        node_domain_pvals: Union[Dict[int, Dict[int, float]], None] = None,
+        node_domain_fdrs: Union[Dict[int, Dict[int, Union[float, None]]], None] = None,
     ) -> Dict[int, Dict]:
         """
         Create a mapping from each node ID to its significant domains and scores.
@@ -195,12 +215,25 @@ class Graph:
         Args:
             domains (pd.DataFrame): A DataFrame containing domain information for each node. Assumes the last
                 two columns are 'all domains' and 'primary domain', which are excluded from processing.
+            node_domain_terms (Dict[int, Dict[int, List[str]]], optional): Nonzero contributing annotation
+                terms per node and domain, sorted descending by absolute significance. Defaults to None.
+            node_domain_pvals (Dict[int, Dict[int, float]], optional): Raw p-value paired to each node's
+                strongest contributing term per domain. Defaults to None.
+            node_domain_fdrs (Dict[int, Dict[int, Union[float, None]]], optional): Raw FDR paired to the
+                same term as node_domain_pvals. Numeric under normal load_graph usage; None only
+                for direct construction with incomplete or omitted metadata. Defaults to None.
 
         Returns:
-            Dict[int, Dict]: A dictionary keyed by node ID whose values contain two entries:
-                'domains' holding the list of domain columns with non-zero significance and
-                'significances' storing the corresponding scores.
+            Dict[int, Dict]: A dictionary keyed by node ID whose values contain 'domains' holding the list
+                of domain columns with non-zero significance, 'significances' storing the corresponding
+                scores, 'terms' storing each domain's nonzero contributing term strings, and 'p_values'/
+                'fdrs' storing the raw statistics paired to the strongest contributing term. The latter
+                three are representative provenance for the domain association, not a node-level test.
         """
+        # Normalize optional provenance inputs once so every node entry can be built the same way
+        node_domain_terms = node_domain_terms or {}
+        node_domain_pvals = node_domain_pvals or {}
+        node_domain_fdrs = node_domain_fdrs or {}
         # Initialize an empty dictionary to store the result
         node_id_to_domain_ids_and_significances = {}
         # Get the list of domain columns (excluding 'all domains' and 'primary domain')
@@ -213,10 +246,19 @@ class Graph:
             all_domains = domain_columns[row[domain_columns].abs() > 0].tolist()
             # Get the significance values for those domains
             significance_values = row[all_domains].to_dict()
+            # Under tail="both", a domain's per-term contributions can cancel to a net-zero sum
+            # even though individual terms are nonzero; filter to all_domains so every sibling
+            # key below stays aligned with 'domains'/'significances'.
+            node_terms = node_domain_terms.get(idx, {})
+            node_pvals = node_domain_pvals.get(idx, {})
+            node_fdrs = node_domain_fdrs.get(idx, {})
             # Store the result in the dictionary with index as the key
             node_id_to_domain_ids_and_significances[idx] = {
                 "domains": all_domains,  # The column names where significance > 0
                 "significances": significance_values,  # The actual significance values for those columns
+                "terms": {d: node_terms[d] for d in all_domains if d in node_terms},
+                "p_values": {d: node_pvals[d] for d in all_domains if d in node_pvals},
+                "fdrs": {d: node_fdrs[d] for d in all_domains if d in node_fdrs},
             }
 
         return node_id_to_domain_ids_and_significances

@@ -10,6 +10,8 @@ import pytest
 
 from risk.cluster import define_domains
 from risk.network.graph._summary import Summary
+from risk.network.graph.api import GraphAPI
+from risk.network.graph.graph import Graph
 
 
 def test_load_graph_with_json_annotation(risk_obj, cytoscape_network, json_annotation):
@@ -457,6 +459,49 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
     assert isinstance(
         graph.node_id_to_domain_ids_and_significance_map, dict
     ), "Node ID to domain IDs and significance map should be a dictionary"
+
+    # Every node entry should carry the additive provenance keys alongside the existing ones
+    found_provenance = False
+    for node_id, domain_info in graph.node_id_to_domain_ids_and_significance_map.items():
+        assert isinstance(
+            domain_info["domains"], list
+        ), f"Node {node_id} 'domains' should be a list"
+        assert isinstance(
+            domain_info["significances"], dict
+        ), f"Node {node_id} 'significances' should be a dictionary"
+        assert isinstance(
+            domain_info["terms"], dict
+        ), f"Node {node_id} 'terms' should be a dictionary"
+        assert isinstance(
+            domain_info["p_values"], dict
+        ), f"Node {node_id} 'p_values' should be a dictionary"
+        assert isinstance(
+            domain_info["fdrs"], dict
+        ), f"Node {node_id} 'fdrs' should be a dictionary"
+
+        # The five sibling keys must describe exactly the same set of domain associations
+        domain_id_set = set(domain_info["domains"])
+        assert (
+            set(domain_info["significances"])
+            == domain_id_set
+            == set(domain_info["terms"])
+            == set(domain_info["p_values"])
+            == set(domain_info["fdrs"])
+        ), f"Node {node_id} sibling keys should describe the same domain set"
+
+        # If a domain has contributing terms, its representative p-value/FDR should be usable
+        for domain_id in domain_info["domains"]:
+            terms = domain_info["terms"].get(domain_id, [])
+            if not terms:
+                continue
+            assert all(isinstance(term, str) for term in terms)
+            assert isinstance(domain_info["p_values"][domain_id], float)
+            # BH q-values are always computed regardless of fdr_cutoff, so this fixture's
+            # fdr_cutoff=1.0 (permissive threshold) still yields a real numeric FDR.
+            assert isinstance(domain_info["fdrs"][domain_id], float)
+            found_provenance = True
+    assert found_provenance, "Expected at least one node-domain association with contributing terms"
+
     assert isinstance(
         graph.node_id_to_node_label_map, dict
     ), "Node ID to node label map should be a dictionary"
@@ -480,6 +525,67 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
         graph.node_coordinates, np.ndarray
     ), "Node coordinates should be a numpy array"
     assert isinstance(graph.summary, Summary), "Summary should be a Summary object"
+
+
+def test_load_graph_threads_fdr_values_into_node_domain_metadata(
+    risk_obj, cytoscape_network, json_annotation
+):
+    """
+    Ensure a real load_graph(...) run threads a genuine, numeric FDR value into
+    node_id_to_domain_ids_and_significance_map, even at the permissive default fdr_cutoff=1.0.
+    BH q-values are always computed regardless of fdr_cutoff, which only thresholds them; this
+    guards against a plumbing regression where q-values are computed but never reach Graph.
+
+    Args:
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
+        json_annotation: The JSON annotation associated with the network.
+    """
+    # === Cluster and Stats ===
+    clusters = risk_obj.cluster_leiden(
+        network=cytoscape_network,
+        fraction_shortest_edges=0.75,
+        resolution=1.0,
+        random_seed=887,
+    )
+    stats_results = risk_obj.run_permutation(
+        annotation=json_annotation,
+        clusters=clusters,
+        null_distribution="network",
+        score_metric="stdev",
+        num_permutations=20,
+        random_seed=887,
+        max_workers=1,
+    )
+    # fdr_cutoff=1.0 (the load_graph default) is permissive but still computes real q-values.
+    graph = risk_obj.load_graph(
+        network=cytoscape_network,
+        annotation=json_annotation,
+        stats_results=stats_results,
+        tail="right",
+        pval_cutoff=0.05,
+        fdr_cutoff=1.0,
+        display_prune_threshold=0.1,
+        linkage_criterion="distance",
+        linkage_method="average",
+        linkage_metric="yule",
+        linkage_threshold=0.2,
+        min_cluster_size=5,
+        max_cluster_size=1000,
+    )
+
+    found_float_fdr = False
+    for domain_info in graph.node_id_to_domain_ids_and_significance_map.values():
+        for domain_id, fdr in domain_info["fdrs"].items():
+            if fdr is None:
+                continue
+            assert isinstance(fdr, float)
+            assert domain_id in domain_info["domains"]
+            assert domain_id in domain_info["significances"]
+            assert domain_id in domain_info["terms"]
+            assert domain_id in domain_info["p_values"]
+            found_float_fdr = True
+    assert found_float_fdr, "Expected at least one non-None float FDR under fdr_cutoff=1.0"
 
 
 def test_load_graph_summary(graph):
@@ -638,6 +744,15 @@ def test_pop_domain(graph):
         assert domain_id_to_remove not in domain_info.get(
             "significances", {}
         ), f"{domain_id_to_remove} should be removed from node_id_to_domain_ids_and_significance_map['significances']"
+        assert domain_id_to_remove not in domain_info.get(
+            "terms", {}
+        ), f"{domain_id_to_remove} should be removed from node_id_to_domain_ids_and_significance_map['terms']"
+        assert domain_id_to_remove not in domain_info.get(
+            "p_values", {}
+        ), f"{domain_id_to_remove} should be removed from node_id_to_domain_ids_and_significance_map['p_values']"
+        assert domain_id_to_remove not in domain_info.get(
+            "fdrs", {}
+        ), f"{domain_id_to_remove} should be removed from node_id_to_domain_ids_and_significance_map['fdrs']"
 
     # Finally, check that the summary no longer contains the removed domain ID
     refreshed_summary = graph.summary.load()
@@ -854,27 +969,29 @@ def test_define_domains_handles_safeguard_row_drop_without_global_fallback():
     domain, while non-significant annotations remain unassigned (domain 0).
     """
     # Two significant annotations: one degenerate (zero-variance) and one clusterable.
+    # term_d and term_e are non-significant, like term_c, so they share domain 0 with it -
+    # this lets the same node/domain pair also exercise zero-filtering and abs-value sorting.
     top_annotation = pd.DataFrame(
         {
-            "significant_annotation": [True, True, False],
-            "full_terms": ["term_a", "term_b", "term_c"],
-            "significant_cluster_significance_sums": [1.0, 2.0, 0.0],
-            "significant_significance_score": [1.0, 2.0, 0.0],
+            "significant_annotation": [True, True, False, False, False],
+            "full_terms": ["term_a", "term_b", "term_c", "term_d", "term_e"],
+            "significant_cluster_significance_sums": [1.0, 2.0, 0.0, 0.0, 0.0],
+            "significant_significance_score": [1.0, 2.0, 0.0, 0.0, 0.0],
         },
-        index=["term_a", "term_b", "term_c"],
+        index=["term_a", "term_b", "term_c", "term_d", "term_e"],
     )
-    # term_a is dropped by safeguard (constant column), term_b is retained, term_c is non-significant.
+    # term_a is dropped by safeguard (constant column), term_b is retained, term_c/d/e are non-significant.
     significant_clusters_significance = np.array(
         [
-            [5.0, 1.0, 0.0],
-            [5.0, 2.0, 0.0],
-            [5.0, 3.0, 0.0],
-            [5.0, 4.0, 0.0],
+            [5.0, 1.0, 0.0, -6.0, 3.0],
+            [5.0, 2.0, 0.0, 0.0, 0.0],
+            [5.0, 3.0, 0.0, 0.0, 0.0],
+            [5.0, 4.0, 0.0, 0.0, 0.0],
         ],
         dtype=float,
     )
 
-    domains = define_domains(
+    domains, contributing_terms = define_domains(
         top_annotation=top_annotation,
         significant_clusters_significance=significant_clusters_significance,
         linkage_criterion="distance",
@@ -888,6 +1005,135 @@ def test_define_domains_handles_safeguard_row_drop_without_global_fallback():
     assert top_annotation.loc["term_b", "domain"] > 0
     assert top_annotation.loc["term_a", "domain"] != top_annotation.loc["term_b", "domain"]
     assert (domains["primary_domain"] > 0).any()
+
+    # contributing_terms should carry the same node/domain provenance that fed the summation
+    assert isinstance(contributing_terms, dict)
+    domain_a_id = top_annotation.loc["term_a", "domain"]
+    domain_b_id = top_annotation.loc["term_b", "domain"]
+    assert contributing_terms[0][domain_a_id] == [("term_a", "term_a", 5.0)]
+    assert contributing_terms[0][domain_b_id] == [("term_b", "term_b", 1.0)]
+
+    # Domain 0 (term_c=0.0, term_d=-6.0, term_e=3.0 for node 0) exercises, through the same
+    # public entry point: zero-value exclusion, term string/index preservation, and descending
+    # sort by absolute masked contribution regardless of sign.
+    assert contributing_terms[0][0] == [("term_d", "term_d", -6.0), ("term_e", "term_e", 3.0)]
+
+
+def test_resolve_node_domain_provenance_pairs_selected_tail():
+    """
+    Ensure representative p-values/FDRs are read from the tail actually selected per cell,
+    not always from enrichment regardless of enrichment_selection_matrix.
+    """
+    contributing_terms = {0: {1: [(0, "term_a", 5.0)], 2: [(1, "term_b", 3.0)]}}
+    enrichment_pvals = np.array([[0.01, 0.99]])
+    depletion_pvals = np.array([[0.88, 0.02]])
+    enrichment_qvals = np.array([[0.11, 0.98]])
+    depletion_qvals = np.array([[0.77, 0.12]])
+    # Domain 1's strongest term is enrichment-selected; domain 2's is depletion-selected
+    enrichment_selection_matrix = np.array([[True, False]])
+
+    _, node_domain_pvals, node_domain_fdrs = GraphAPI()._resolve_node_domain_provenance(
+        contributing_terms=contributing_terms,
+        enrichment_pvals=enrichment_pvals,
+        depletion_pvals=depletion_pvals,
+        enrichment_qvals=enrichment_qvals,
+        depletion_qvals=depletion_qvals,
+        enrichment_selection_matrix=enrichment_selection_matrix,
+    )
+
+    assert np.isclose(node_domain_pvals[0][1], 0.01, atol=1e-12, rtol=0.0)
+    assert np.isclose(node_domain_fdrs[0][1], 0.11, atol=1e-12, rtol=0.0)
+    assert np.isclose(node_domain_pvals[0][2], 0.02, atol=1e-12, rtol=0.0)
+    assert np.isclose(node_domain_fdrs[0][2], 0.12, atol=1e-12, rtol=0.0)
+
+
+def test_graph_construction_without_node_domain_metadata_defaults_empty():
+    """
+    Ensure direct Graph construction without the new provenance arguments degrades safely,
+    and that pop() does not crash when those provenance dictionaries are empty.
+    """
+    network = nx.Graph()
+    network.add_nodes_from([0, 1])
+    network.add_edge(0, 1)
+    for node in network.nodes:
+        network.nodes[node]["x"] = 0.0
+        network.nodes[node]["y"] = 0.0
+        network.nodes[node]["label"] = str(node)
+
+    domains = pd.DataFrame(
+        {1: [5.0, 0.0], "all_domains": [[1], []], "primary_domain": [1, 0]},
+        index=[0, 1],
+    )
+    trimmed_domains = pd.DataFrame(
+        {
+            "normalized_description": ["term_a"],
+            "full_descriptions": [("term_a",)],
+            "significance_scores": [(5.0,)],
+        },
+        index=[1],
+    )
+
+    graph = Graph(
+        network=network,
+        annotation={},
+        stats_results={},
+        domains=domains,
+        trimmed_domains=trimmed_domains,
+        node_label_to_node_id_map={"0": 0, "1": 1},
+        node_significance_sums=np.array([5.0, 0.0]),
+    )
+
+    for domain_info in graph.node_id_to_domain_ids_and_significance_map.values():
+        assert domain_info["terms"] == {}
+        assert domain_info["p_values"] == {}
+        assert domain_info["fdrs"] == {}
+
+    # pop() must not raise even though the provenance dictionaries are empty
+    graph.pop(1)
+
+
+def test_graph_excludes_zero_significance_domain_from_provenance():
+    """
+    Ensure a domain with zero summed significance (absent from 'domains') is also excluded
+    from 'terms'/'p_values'/'fdrs', even when upstream provenance still references it. This can
+    happen under tail="both", where a domain's per-term contributions can cancel to a net-zero
+    sum despite individual terms being nonzero.
+    """
+    network = nx.Graph()
+    network.add_node(0)
+    network.nodes[0]["x"] = 0.0
+    network.nodes[0]["y"] = 0.0
+    network.nodes[0]["label"] = "0"
+
+    # Domain 1 has zero summed significance for node 0, so it is absent from all_domains.
+    domains = pd.DataFrame(
+        {1: [0.0], "all_domains": [[]], "primary_domain": [0]},
+        index=[0],
+    )
+    trimmed_domains = pd.DataFrame(
+        {"normalized_description": [], "full_descriptions": [], "significance_scores": []},
+        index=pd.Index([], dtype=int),
+    )
+
+    graph = Graph(
+        network=network,
+        annotation={},
+        stats_results={},
+        domains=domains,
+        trimmed_domains=trimmed_domains,
+        node_label_to_node_id_map={"0": 0},
+        node_significance_sums=np.array([0.0]),
+        # Provenance still references domain 1 despite its summed significance being zero
+        node_domain_terms={0: {1: ["term_a", "term_b"]}},
+        node_domain_pvals={0: {1: 0.01}},
+        node_domain_fdrs={0: {1: 0.02}},
+    )
+
+    entry = graph.node_id_to_domain_ids_and_significance_map[0]
+    assert entry["domains"] == []
+    assert 1 not in entry["terms"]
+    assert 1 not in entry["p_values"]
+    assert 1 not in entry["fdrs"]
 
 
 def _validate_graph(graph):

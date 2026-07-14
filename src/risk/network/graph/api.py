@@ -4,9 +4,10 @@ risk/network/graph/api
 """
 
 import copy
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import networkx as nx
+import numpy as np
 import pandas as pd
 
 from ...annotation import define_top_annotation
@@ -35,7 +36,7 @@ class GraphAPI:
         stats_results: Dict[str, Any],
         tail: str = "right",
         pval_cutoff: float = 0.01,
-        fdr_cutoff: float = 0.9999,
+        fdr_cutoff: float = 1.0,
         display_prune_threshold: float = 0.0,
         linkage_criterion: str = "distance",
         linkage_method: str = "average",
@@ -53,7 +54,9 @@ class GraphAPI:
             stats_results (Dict[str, Any]): Cluster significance data.
             tail (str, optional): Type of significance tail ("right", "left", "both"). Defaults to "right".
             pval_cutoff (float, optional): p-value cutoff for significance. Defaults to 0.01.
-            fdr_cutoff (float, optional): FDR cutoff for significance. Defaults to 0.9999.
+            fdr_cutoff (float, optional): FDR cutoff for significance. BH q-values are always
+                computed; this only thresholds them. Defaults to 1.0 (permissive; excludes
+                nothing based on FDR).
             display_prune_threshold (float, optional): Display-only pruning based on spatial layout
                 distance that suppresses spatially diffuse or isolated regions in plots. Runs
                 after enrichment and clustering on plotting matrices only, does not use
@@ -127,7 +130,7 @@ class GraphAPI:
         # Extract the significant significance matrix from the processed_clusters data
         significant_clusters_significance = processed_clusters["significant_significance_matrix"]
         # Define domains in the network using the specified clustering settings
-        domains = define_domains(
+        domains, contributing_terms = define_domains(
             top_annotation=top_annotation,
             significant_clusters_significance=significant_clusters_significance,
             linkage_criterion=linkage_criterion,
@@ -141,6 +144,18 @@ class GraphAPI:
             top_annotation=top_annotation,
             min_cluster_size=min_cluster_size,
             max_cluster_size=max_cluster_size,
+        )
+
+        # Resolve each node-domain association's contributing terms and paired raw statistics
+        node_domain_terms, node_domain_pvals, node_domain_fdrs = (
+            self._resolve_node_domain_provenance(
+                contributing_terms=contributing_terms,
+                enrichment_pvals=stats_results["enrichment_pvals"],
+                depletion_pvals=stats_results["depletion_pvals"],
+                enrichment_qvals=significant_clusters["enrichment_qvals"],
+                depletion_qvals=significant_clusters["depletion_qvals"],
+                enrichment_selection_matrix=significant_clusters["enrichment_selection_matrix"],
+            )
         )
 
         # Prepare node mapping and significance sums for the final Graph object
@@ -157,6 +172,9 @@ class GraphAPI:
             trimmed_domains=trimmed_domains,
             node_label_to_node_id_map=node_label_to_id,
             node_significance_sums=node_significance_sums,
+            node_domain_terms=node_domain_terms,
+            node_domain_pvals=node_domain_pvals,
+            node_domain_fdrs=node_domain_fdrs,
         )
 
     def _define_top_annotation(
@@ -197,3 +215,65 @@ class GraphAPI:
             min_cluster_size=min_cluster_size,
             max_cluster_size=max_cluster_size,
         )
+
+    def _resolve_node_domain_provenance(
+        self,
+        contributing_terms: Dict[int, Dict[int, List[Tuple[int, str, float]]]],
+        enrichment_pvals: np.ndarray,
+        depletion_pvals: np.ndarray,
+        enrichment_qvals: Union[np.ndarray, None],
+        depletion_qvals: Union[np.ndarray, None],
+        enrichment_selection_matrix: np.ndarray,
+    ) -> Tuple[
+        Dict[int, Dict[int, List[str]]],
+        Dict[int, Dict[int, float]],
+        Dict[int, Dict[int, Union[float, None]]],
+    ]:
+        """
+        Resolve each node-domain association's contributing terms and pair the strongest term
+        with its raw p-value and FDR.
+
+        Args:
+            contributing_terms (Dict[int, Dict[int, List[Tuple[int, str, float]]]]): Node ID to
+                domain ID to a list of (term index, term string, masked significance) tuples,
+                sorted descending by absolute significance.
+            enrichment_pvals (np.ndarray): Raw enrichment p-value matrix [node, term].
+            depletion_pvals (np.ndarray): Raw depletion p-value matrix [node, term].
+            enrichment_qvals (np.ndarray, optional): FDR-corrected enrichment q-value matrix
+                [node, term]. Always populated by load_graph; None only if called directly
+                without q-values.
+            depletion_qvals (np.ndarray, optional): FDR-corrected depletion q-value matrix
+                [node, term]. Always populated by load_graph; None only if called directly
+                without q-values.
+            enrichment_selection_matrix (np.ndarray): Boolean matrix [node, term] indicating
+                whether the enrichment (True) or depletion (False) tail was selected for that cell.
+
+        Returns:
+            Tuple[Dict[int, Dict[int, List[str]]], Dict[int, Dict[int, float]], Dict[int, Dict[int, Union[float, None]]]]:
+                - Node ID to domain ID to the list of contributing term strings.
+                - Node ID to domain ID to the raw p-value paired to the strongest contributing term.
+                - Node ID to domain ID to the raw FDR paired to that same term, numeric under
+                  normal load_graph usage; None only if called directly without q-values.
+        """
+        node_domain_terms: Dict[int, Dict[int, List[str]]] = {}
+        node_domain_pvals: Dict[int, Dict[int, float]] = {}
+        node_domain_fdrs: Dict[int, Dict[int, Union[float, None]]] = {}
+        for node_id, domain_terms in contributing_terms.items():
+            for domain_id, terms in domain_terms.items():
+                # terms is already sorted descending, so the strongest term is always first
+                strongest_term_idx, _, _ = terms[0]
+                is_enrichment = bool(enrichment_selection_matrix[node_id, strongest_term_idx])
+                pvals = enrichment_pvals if is_enrichment else depletion_pvals
+                qvals = enrichment_qvals if is_enrichment else depletion_qvals
+
+                node_domain_terms.setdefault(node_id, {})[domain_id] = [
+                    term_str for _, term_str, _ in terms
+                ]
+                node_domain_pvals.setdefault(node_id, {})[domain_id] = float(
+                    pvals[node_id, strongest_term_idx]
+                )
+                node_domain_fdrs.setdefault(node_id, {})[domain_id] = (
+                    float(qvals[node_id, strongest_term_idx]) if qvals is not None else None
+                )
+
+        return node_domain_terms, node_domain_pvals, node_domain_fdrs
