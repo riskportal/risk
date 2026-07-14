@@ -9,6 +9,17 @@ description = "A Python package for scalable network analysis and high-quality v
 authors = [
     { name = "Ira Horecka", email = "ira89@icloud.com" },
 ]
+keywords = [
+    "bioinformatics",
+    "network-analysis",
+    "systems-biology",
+    "community-detection",
+    "graph-clustering",
+    "enrichment-analysis",
+    "gene-ontology",
+    "cytoscape",
+    "visualization",
+]
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
