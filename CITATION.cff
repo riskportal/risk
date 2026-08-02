@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+message: "If you use RISK, please cite the Bioinformatics paper and the software archive."
+title: "RISK: Regional Inference of Significant Kinships"
+abstract: "RISK is a Python package for scalable network annotation and visualization. It integrates community detection, overrepresentation analysis with user-provided annotation sets, and publication-ready contour-overlay visualizations for biological and interdisciplinary networks."
+authors:
+  - family-names: Horecka
+    given-names: Ira
+    orcid: "https://orcid.org/0009-0001-3087-7087"
+  - family-names: Röst
+    given-names: Hannes
+    orcid: "https://orcid.org/0000-0003-0990-7488"
+type: software
+license: GPL-3.0-or-later
+repository-code: "https://github.com/riskportal/risk"
+url: "https://riskportal.github.io/risk-docs/"
+doi: "10.5281/zenodo.17257418"
+keywords:
+  - bioinformatics
+  - biological network analysis
+  - network annotation
+  - network visualization
+  - community detection
+  - network clustering
+  - functional annotation
+  - overrepresentation analysis
+  - Gene Ontology
+  - CORUM
+  - KEGG
+  - Louvain
+  - Leiden
+  - Markov clustering
+  - SAFE alternative
+preferred-citation:
+  type: article
+  title: "RISK: a next-generation tool for biological network annotation and visualization"
+  authors:
+    - family-names: Horecka
+      given-names: Ira
+      orcid: "https://orcid.org/0009-0001-3087-7087"
+    - family-names: Röst
+      given-names: Hannes
+      orcid: "https://orcid.org/0000-0003-0990-7488"
+  journal: Bioinformatics
+  year: 2026
+  doi: "10.1093/bioinformatics/btaf669"
