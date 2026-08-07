@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from numpy.linalg import LinAlgError
 from scipy.cluster.hierarchy import fcluster, linkage
+from scipy.spatial.distance import pdist, squareform
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
@@ -459,74 +460,62 @@ def _find_best_silhouette_score(
     m: np.ndarray,
     linkage_metric: str,
     linkage_criterion: str,
-    lower_bound: float = 0.001,
-    upper_bound: float = 1.0,
 ) -> Tuple[float, float]:
     """
-    Find the best silhouette score using binary search.
+    Find the best silhouette score via discrete enumeration over linkage merge heights.
 
     Args:
         Z (np.ndarray): Linkage matrix.
         m (np.ndarray): Data matrix.
         linkage_metric (str): Linkage metric for silhouette score calculation.
         linkage_criterion (str): Clustering criterion.
-        lower_bound (float, optional): Lower bound for search. Defaults to 0.001.
-        upper_bound (float, optional): Upper bound for search. Defaults to 1.0.
 
     Returns:
         Tuple[float, float]:
-            - Best threshold (float): The threshold that yields the best silhouette score.
+            - Best threshold (float): Normalized fraction in (0, 1] of the merge height that
+              yields the best silhouette score.
             - Best silhouette score (float): The highest silhouette score achieved.
+
+    Raises:
+        ValueError: If no candidate merge height yields a scoreable partition (requires
+            2 to N-1 clusters).
     """
+    # fcluster(..., criterion="distance") only changes partition at actual merge heights, so
+    # the silhouette-vs-threshold objective is a stepwise, often multimodal function of the
+    # cut height. Binary search assumes unimodality between two probed endpoints and can
+    # converge on a suboptimal cut; enumerating the true candidate heights cannot miss the
+    # best partition. This is slower at large N (O(N) candidates vs. a fixed probe budget),
+    # but searches the actual space the objective lives on.
+    raw_max = np.max(Z[:, 2])
+    n = m.shape[0]
+    dist_matrix = squareform(pdist(m, metric=linkage_metric))
+
     best_score = -np.inf
-    best_threshold = None
-    minimum_linkage_threshold = 1e-6
-
-    # Test lower bound
-    max_d_lower = np.max(Z[:, 2]) * lower_bound
-    clusters_lower = fcluster(Z, max_d_lower, criterion=linkage_criterion)
-    try:
-        score_lower = silhouette_score(m, clusters_lower, metric=linkage_metric)
-    except ValueError:
-        score_lower = -np.inf
-
-    # Test upper bound
-    max_d_upper = np.max(Z[:, 2]) * upper_bound
-    clusters_upper = fcluster(Z, max_d_upper, criterion=linkage_criterion)
-    try:
-        score_upper = silhouette_score(m, clusters_upper, metric=linkage_metric)
-    except ValueError:
-        score_upper = -np.inf
-
-    # Determine initial bounds for binary search
-    if score_lower > score_upper:
-        best_score = score_lower
-        best_threshold = lower_bound
-        upper_bound = (lower_bound + upper_bound) / 2
-    else:
-        best_score = score_upper
-        best_threshold = upper_bound
-        lower_bound = (lower_bound + upper_bound) / 2
-
-    # Binary search loop
-    while upper_bound - lower_bound > minimum_linkage_threshold:
-        mid_threshold = (upper_bound + lower_bound) / 2
-        max_d_mid = np.max(Z[:, 2]) * mid_threshold
-        clusters_mid = fcluster(Z, max_d_mid, criterion=linkage_criterion)
+    best_height = None
+    for height in np.unique(Z[:, 2]):
+        labels = fcluster(Z, height, criterion=linkage_criterion)
+        n_clusters = len(np.unique(labels))
+        if n_clusters < 2 or n_clusters >= n:
+            continue
         try:
-            score_mid = silhouette_score(m, clusters_mid, metric=linkage_metric)
+            score = silhouette_score(dist_matrix, labels, metric="precomputed")
         except ValueError:
-            score_mid = -np.inf
+            continue
 
-        # Update best score and threshold if mid-point is better
-        if score_mid > best_score:
-            best_score = score_mid
-            best_threshold = mid_threshold
+        is_better = score > best_score
+        is_tied = (
+            np.isfinite(score)
+            and np.isfinite(best_score)
+            and np.isclose(score, best_score, rtol=0.0, atol=1e-12)
+        )
+        if is_better or (is_tied and height < best_height):
+            best_score = score
+            best_height = height
 
-        # Adjust bounds based on the scores
-        if score_lower > score_upper:
-            upper_bound = mid_threshold
-        else:
-            lower_bound = mid_threshold
+    if best_height is None:
+        raise ValueError(
+            "No candidate linkage merge height yielded a scoreable silhouette partition "
+            "(requires 2 to N-1 clusters)."
+        )
 
-    return best_threshold, float(best_score)
+    return float(best_height) / float(raw_max), float(best_score)

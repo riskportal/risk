@@ -7,6 +7,9 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
+from scipy.cluster.hierarchy import fcluster, linkage
+from scipy.spatial.distance import pdist, squareform
+from sklearn.metrics import silhouette_score
 
 from risk.cluster import define_domains
 from risk.network.graph._summary import Summary
@@ -1017,6 +1020,118 @@ def test_define_domains_handles_safeguard_row_drop_without_global_fallback():
     # public entry point: zero-value exclusion, term string/index preservation, and descending
     # sort by absolute masked contribution regardless of sign.
     assert contributing_terms[0][0] == [("term_d", "term_d", -6.0), ("term_e", "term_e", 3.0)]
+
+
+def test_define_domains_auto_threshold_matches_best_discrete_cut():
+    """
+    Ensure linkage_threshold="auto" assigns domains matching the independently computed
+    best discrete dendrogram cut, not merely a plausible one. linkage_method/linkage_metric
+    are fixed so this isolates the threshold search from method/metric auto-optimization.
+    Four well-separated blobs of four annotations each give a silhouette-vs-cut landscape
+    with a clear, unambiguous best partition to check the result against.
+    """
+    rng = np.random.default_rng(3)
+    m = np.vstack(
+        [
+            rng.normal([0, 0], 0.05, size=(4, 2)),
+            rng.normal([2, 0], 0.05, size=(4, 2)),
+            rng.normal([0, 2], 0.05, size=(4, 2)),
+            rng.normal([2, 2], 0.05, size=(4, 2)),
+        ]
+    )
+    n_annotations = m.shape[0]
+    term_ids = [f"term_{i}" for i in range(n_annotations)]
+    top_annotation = pd.DataFrame(
+        {
+            "significant_annotation": [True] * n_annotations,
+            "full_terms": term_ids,
+            "significant_cluster_significance_sums": np.ones(n_annotations),
+            "significant_significance_score": np.ones(n_annotations),
+        },
+        index=term_ids,
+    )
+    # significant_clusters_significance has shape (n_nodes, n_annotations); define_domains
+    # reconstructs m = significant_clusters_significance[:, significant_mask].T internally,
+    # so significant_clusters_significance is simply m transposed here.
+    significant_clusters_significance = m.T
+
+    # Independently enumerate the true best discrete cut on the same matrix.
+    Z = linkage(m, method="average", metric="euclidean")
+    dist_matrix = squareform(pdist(m, metric="euclidean"))
+    best_height, best_score = None, -np.inf
+    for height in np.unique(Z[:, 2]):
+        labels = fcluster(Z, height, criterion="distance")
+        n_clusters = len(np.unique(labels))
+        if n_clusters < 2 or n_clusters >= n_annotations:
+            continue
+        score = silhouette_score(dist_matrix, labels, metric="precomputed")
+        is_tied = (
+            np.isfinite(score)
+            and np.isfinite(best_score)
+            and np.isclose(score, best_score, rtol=0.0, atol=1e-12)
+        )
+        if score > best_score or (is_tied and height < best_height):
+            best_score = score
+            best_height = height
+    assert best_height is not None
+    expected_labels = fcluster(Z, best_height, criterion="distance")
+    expected_groups = {
+        frozenset(term_ids[i] for i in range(n_annotations) if expected_labels[i] == label)
+        for label in np.unique(expected_labels)
+    }
+
+    define_domains(
+        top_annotation=top_annotation,
+        significant_clusters_significance=significant_clusters_significance,
+        linkage_criterion="distance",
+        linkage_method="average",
+        linkage_metric="euclidean",
+        linkage_threshold="auto",
+    )
+
+    # Compare groupings in a label-invariant way: which annotations end up together matters,
+    # not what integer domain ID they're given.
+    actual_groups = set(
+        frozenset(group.index) for _, group in top_annotation.groupby("domain") if group.index.size
+    )
+    assert actual_groups == expected_groups
+
+
+def test_define_domains_auto_threshold_no_scoreable_partition_falls_back_to_unique_domains():
+    """
+    Ensure linkage_threshold="auto" degrades gracefully at the public define_domains layer
+    when no candidate merge height yields a scoreable (2 to N-1 cluster) partition. With only
+    two significant annotations, the only possible cut is 1-vs-2 clusters, so no valid
+    silhouette partition exists; define_domains must not raise, and must still assign each
+    significant annotation its own domain rather than collapsing them together.
+    """
+    top_annotation = pd.DataFrame(
+        {
+            "significant_annotation": [True, True],
+            "full_terms": ["term_a", "term_b"],
+            "significant_cluster_significance_sums": [1.0, 1.0],
+            "significant_significance_score": [1.0, 1.0],
+        },
+        index=["term_a", "term_b"],
+    )
+    significant_clusters_significance = np.array(
+        [[0.0, 10.0], [0.0, 10.0], [1.0, 11.0]]
+    )  # shape (3 nodes, 2 annotations); term_a and term_b are clearly distinct rows once transposed
+
+    domains, _ = define_domains(
+        top_annotation=top_annotation,
+        significant_clusters_significance=significant_clusters_significance,
+        linkage_criterion="distance",
+        linkage_method="average",
+        linkage_metric="euclidean",
+        linkage_threshold="auto",
+    )
+
+    domain_a = top_annotation.loc["term_a", "domain"]
+    domain_b = top_annotation.loc["term_b", "domain"]
+    assert domain_a > 0
+    assert domain_b > 0
+    assert domain_a != domain_b
 
 
 def test_resolve_node_domain_provenance_pairs_selected_tail():
