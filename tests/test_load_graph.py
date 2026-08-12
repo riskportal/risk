@@ -1024,20 +1024,30 @@ def test_define_domains_handles_safeguard_row_drop_without_global_fallback():
 
 def test_define_domains_auto_threshold_matches_best_discrete_cut():
     """
-    Ensure linkage_threshold="auto" assigns domains matching the independently computed
-    best discrete dendrogram cut, not merely a plausible one. linkage_method/linkage_metric
-    are fixed so this isolates the threshold search from method/metric auto-optimization.
-    Four well-separated blobs of four annotations each give a silhouette-vs-cut landscape
-    with a clear, unambiguous best partition to check the result against.
+    Ensure linkage_threshold="auto" assigns domains from the best discrete dendrogram cut.
+    The method and metric are fixed so this isolates threshold selection from method/metric
+    auto-optimization.
     """
-    rng = np.random.default_rng(3)
-    m = np.vstack(
+    m = np.array(
         [
-            rng.normal([0, 0], 0.05, size=(4, 2)),
-            rng.normal([2, 0], 0.05, size=(4, 2)),
-            rng.normal([0, 2], 0.05, size=(4, 2)),
-            rng.normal([2, 2], 0.05, size=(4, 2)),
-        ]
+            [0.00, 0.10, 0.20],
+            [0.05, 0.15, 0.25],
+            [-0.05, 0.05, 0.15],
+            [0.10, 0.00, 0.20],
+            [3.00, 0.00, 0.20],
+            [3.10, 0.10, 0.30],
+            [2.90, -0.10, 0.10],
+            [3.05, 0.05, 0.25],
+            [0.00, 3.00, 0.20],
+            [0.10, 3.10, 0.30],
+            [-0.10, 2.90, 0.10],
+            [0.05, 3.05, 0.25],
+            [3.00, 3.00, 0.20],
+            [3.10, 3.10, 0.30],
+            [2.90, 2.90, 0.10],
+            [3.05, 3.05, 0.25],
+        ],
+        dtype=float,
     )
     n_annotations = m.shape[0]
     term_ids = [f"term_{i}" for i in range(n_annotations)]
@@ -1050,12 +1060,10 @@ def test_define_domains_auto_threshold_matches_best_discrete_cut():
         },
         index=term_ids,
     )
-    # significant_clusters_significance has shape (n_nodes, n_annotations); define_domains
-    # reconstructs m = significant_clusters_significance[:, significant_mask].T internally,
-    # so significant_clusters_significance is simply m transposed here.
+    # define_domains clusters significant_clusters_significance.T for significant annotations.
     significant_clusters_significance = m.T
 
-    # Independently enumerate the true best discrete cut on the same matrix.
+    # Independently enumerate the best observable dendrogram cut.
     Z = linkage(m, method="average", metric="euclidean")
     dist_matrix = squareform(pdist(m, metric="euclidean"))
     best_height, best_score = None, -np.inf
@@ -1089,8 +1097,6 @@ def test_define_domains_auto_threshold_matches_best_discrete_cut():
         linkage_threshold="auto",
     )
 
-    # Compare groupings in a label-invariant way: which annotations end up together matters,
-    # not what integer domain ID they're given.
     actual_groups = set(
         frozenset(group.index) for _, group in top_annotation.groupby("domain") if group.index.size
     )
@@ -1099,11 +1105,9 @@ def test_define_domains_auto_threshold_matches_best_discrete_cut():
 
 def test_define_domains_auto_threshold_no_scoreable_partition_falls_back_to_unique_domains():
     """
-    Ensure linkage_threshold="auto" degrades gracefully at the public define_domains layer
-    when no candidate merge height yields a scoreable (2 to N-1 cluster) partition. With only
-    two significant annotations, the only possible cut is 1-vs-2 clusters, so no valid
-    silhouette partition exists; define_domains must not raise, and must still assign each
-    significant annotation its own domain rather than collapsing them together.
+    Ensure linkage_threshold="auto" degrades gracefully when no scoreable cut exists.
+    With only two significant annotations, no 2 to N-1 silhouette partition is possible, so
+    define_domains should still assign distinct domains without raising.
     """
     top_annotation = pd.DataFrame(
         {
@@ -1114,11 +1118,9 @@ def test_define_domains_auto_threshold_no_scoreable_partition_falls_back_to_uniq
         },
         index=["term_a", "term_b"],
     )
-    significant_clusters_significance = np.array(
-        [[0.0, 10.0], [0.0, 10.0], [1.0, 11.0]]
-    )  # shape (3 nodes, 2 annotations); term_a and term_b are clearly distinct rows once transposed
+    significant_clusters_significance = np.array([[0.0, 10.0], [0.0, 10.0], [1.0, 11.0]])
 
-    domains, _ = define_domains(
+    define_domains(
         top_annotation=top_annotation,
         significant_clusters_significance=significant_clusters_significance,
         linkage_criterion="distance",
