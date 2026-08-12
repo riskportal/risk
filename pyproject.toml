@@ -5,9 +5,20 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "risk-network"
 dynamic = ["version"]
-description = "A Python package for scalable network analysis and high-quality visualization."
+description = "RISK (Regional Inference of Significant Kinships): a Python tool for biological network annotation, enrichment analysis, community detection, and visualization."
 authors = [
     { name = "Ira Horecka", email = "ira89@icloud.com" },
+]
+keywords = [
+    "bioinformatics",
+    "network-analysis",
+    "systems-biology",
+    "community-detection",
+    "graph-clustering",
+    "enrichment-analysis",
+    "gene-ontology",
+    "cytoscape",
+    "visualization",
 ]
 readme = "README.md"
 requires-python = ">=3.8"
@@ -51,6 +62,7 @@ text = "GPL-3.0-or-later"
 
 [project.urls]
 Homepage = "https://github.com/riskportal/risk"
+Documentation = "https://riskportal.github.io/risk-docs/"
 Issues = "https://github.com/riskportal/risk/issues"
 
 [tool.setuptools]
