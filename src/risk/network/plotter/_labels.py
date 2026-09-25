@@ -3,7 +3,6 @@ risk/network/plotter/_labels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
-import copy
 from typing import Any, Dict, List, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -840,26 +839,25 @@ class Labels:
         Returns:
             Dict[int, Any]: Optimized label positions.
         """
+        # Each swap only changes two terms, so track the running total instead of recomputing it
+        current_distance = self._calculate_total_distance(best_label_positions, domain_centroids)
         while True:
             improvement = False  # Start each iteration assuming no improvement
             # Iterate through each pair of labels to check for potential improvements
             for i in range(len(domain_centroids)):
                 for j in range(i + 1, len(domain_centroids)):
-                    # Calculate the current total distance
-                    current_distance = self._calculate_total_distance(
-                        best_label_positions, domain_centroids
-                    )
-                    # Evaluate the total distance after swapping two labels
-                    swapped_distance = self._swap_and_evaluate(
+                    # Evaluate the change in total distance from swapping two labels
+                    swap_delta = self._swap_and_evaluate(
                         best_label_positions, i, j, domain_centroids
                     )
                     # If the swap improves the total distance, perform the swap
-                    if swapped_distance < current_distance:
+                    if swap_delta < 0:
                         labels = list(best_label_positions.keys())
                         best_label_positions[labels[i]], best_label_positions[labels[j]] = (
                             best_label_positions[labels[j]],
                             best_label_positions[labels[i]],
                         )
+                        current_distance += swap_delta
                         improvement = True  # Found an improvement, so continue optimizing
 
             if not improvement:
@@ -896,7 +894,7 @@ class Labels:
         domain_centroids: Dict[int, Any],
     ) -> float:
         """
-        Swap two labels and evaluate the total distance after the swap.
+        Evaluate the change in total distance a swap would cause, without performing it.
 
         Args:
             label_positions (Dict[int, Any]): Positions of labels around the perimeter.
@@ -905,18 +903,17 @@ class Labels:
             domain_centroids (Dict[int, Any]): Centroid positions of the domains.
 
         Returns:
-            float: The total distance after swapping the two labels.
+            float: The change in total distance the swap would cause (negative means improvement).
         """
         # Get the list of labels from the dictionary keys
         labels = list(label_positions.keys())
-        swapped_positions = copy.deepcopy(label_positions)
-        # Swap the positions of the two specified labels
-        swapped_positions[labels[i]], swapped_positions[labels[j]] = (
-            swapped_positions[labels[j]],
-            swapped_positions[labels[i]],
-        )
-        # Calculate and return the total distance after the swap
-        return self._calculate_total_distance(swapped_positions, domain_centroids)
+        label_i, label_j = labels[i], labels[j]
+        pos_i, pos_j = label_positions[label_i], label_positions[label_j]
+        centroid_i, centroid_j = domain_centroids[label_i], domain_centroids[label_j]
+        # Only the two swapped labels' distances change, so compare those terms before and after
+        current_terms = np.linalg.norm(centroid_i - pos_i) + np.linalg.norm(centroid_j - pos_j)
+        swapped_terms = np.linalg.norm(centroid_i - pos_j) + np.linalg.norm(centroid_j - pos_i)
+        return float(swapped_terms - current_terms)
 
     def _apply_str_transformation(
         self, words: List[str], transformation: Union[str, Dict[str, str]]
