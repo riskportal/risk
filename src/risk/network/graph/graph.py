@@ -308,6 +308,8 @@ class Graph:
         Returns:
             nx.Graph: The network graph with updated 2D coordinates (only 'x' and 'y').
         """
+        # Copy to avoid mutating the caller's graph
+        G = G.copy()
         for node in G.nodes():
             if "z" in G.nodes[node]:
                 # Extract 3D coordinates
