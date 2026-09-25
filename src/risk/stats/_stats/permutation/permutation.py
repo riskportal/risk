@@ -117,6 +117,27 @@ def _run_permutation_test(
     # Initialize count matrices for depletion and enrichment
     counts_depletion = np.zeros(observed_cluster_scores.shape)
     counts_enrichment = np.zeros(observed_cluster_scores.shape)
+    # Generate precomputed permutations
+    permutations = [rng.permutation(idxs) for _ in range(num_permutations)]
+
+    # Skip the multiprocessing Pool/Manager when only one worker is requested
+    if max_workers == 1:
+        for permuted_idxs in tqdm(permutations, desc="Total progress"):
+            annotation_matrix_permut = annotation[permuted_idxs]
+            with np.errstate(invalid="ignore", divide="ignore"):
+                permuted_cluster_scores = cluster_score_func(
+                    clusters_matrix_obsv, annotation_matrix_permut
+                )
+
+            counts_depletion = np.add(
+                counts_depletion, permuted_cluster_scores <= observed_cluster_scores
+            )
+            counts_enrichment = np.add(
+                counts_enrichment, permuted_cluster_scores >= observed_cluster_scores
+            )
+
+        return counts_depletion, counts_enrichment
+
     # Determine the number of permutations to run in each worker process
     subset_size = num_permutations // max_workers
     remainder = num_permutations % max_workers
@@ -127,8 +148,6 @@ def _run_permutation_test(
     progress_counter = manager.Value("i", 0)
     total_progress = num_permutations
 
-    # Generate precomputed permutations
-    permutations = [rng.permutation(idxs) for _ in range(num_permutations)]
     # Divide permutations into batches for workers
     batch_size = subset_size + (1 if remainder > 0 else 0)
     permutation_batches = [
