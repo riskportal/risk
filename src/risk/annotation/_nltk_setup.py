@@ -73,16 +73,12 @@ def verify_and_extract_if_needed(resource_path: str, package_name: str) -> None:
         # If zip exists but folder doesn't, extraction is needed
         if os.path.exists(zip_path) and not os.path.exists(folder_path):
             logger.info(f"Found unextracted zip for {package_name}, extracting...")
-            try:
-                with zipfile.ZipFile(zip_path, "r") as zf:
-                    # Extract files to the same directory where the zip file is located
-                    zf.extractall(path=resource_dir)
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                # Extract files to the same directory where the zip file is located
+                zf.extractall(path=resource_dir)
 
-                if os.path.exists(folder_path):
-                    logger.info(f"Successfully extracted {package_name}")
-                else:
-                    logger.warning(
-                        f"Extraction completed but resource directory not found for {package_name}"
-                    )
-            except Exception as e:
-                logger.error(f"Failed to extract {package_name}: {e}")
+            if not os.path.exists(folder_path):
+                raise RuntimeError(
+                    f"Extraction completed but resource directory not found for {package_name}"
+                )
+            logger.info(f"Successfully extracted {package_name}")
