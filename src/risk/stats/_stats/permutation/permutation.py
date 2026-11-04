@@ -3,7 +3,9 @@ risk/stats/_stats/permutation/permutation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
-from multiprocessing import Manager, get_context
+from concurrent.futures import ProcessPoolExecutor, wait
+from concurrent.futures.process import BrokenProcessPool
+from multiprocessing import get_context
 from multiprocessing.managers import ValueProxy
 from typing import Any, Callable, Dict, List, Tuple, Union
 
@@ -93,6 +95,7 @@ def _run_permutation_test(
 
     Raises:
         ValueError: If an invalid null_distribution value is provided.
+        RuntimeError: If a worker process exits unexpectedly.
     """
     # Initialize the RNG for reproducibility
     rng = np.random.default_rng(seed=random_seed)
@@ -144,8 +147,6 @@ def _run_permutation_test(
 
     # Use the spawn context for creating a new multiprocessing pool
     ctx = get_context("spawn")
-    manager = Manager()
-    progress_counter = manager.Value("i", 0)
     total_progress = num_permutations
 
     # Divide permutations into batches for workers
@@ -155,35 +156,45 @@ def _run_permutation_test(
     ]
 
     # Execute the permutation test using multiprocessing
-    with ctx.Pool(max_workers) as pool:
-        with tqdm(total=total_progress, desc="Total progress", position=0) as progress:
-            # Prepare parameters for multiprocessing
-            params_list = [
-                (
-                    permutation_batches[i],  # Pass the batch of precomputed permutations
-                    annotation,
-                    clusters_matrix_obsv,
-                    observed_cluster_scores,
-                    cluster_score_func,
-                    num_permutations,
-                    progress_counter,
-                    max_workers,
-                )
-                for i in range(max_workers)
-            ]
+    try:
+        with ctx.Manager() as manager:
+            progress_counter = manager.Value("i", 0)
+            # ProcessPoolExecutor raises BrokenProcessPool if a worker dies, unlike Pool, which
+            # silently respawns workers and leaves the run waiting forever
+            with ProcessPoolExecutor(max_workers=max_workers, mp_context=ctx) as executor:
+                futures = [
+                    executor.submit(
+                        _permutation_process_batch,
+                        permutation_batches[i],  # Pass the batch of precomputed permutations
+                        annotation,
+                        clusters_matrix_obsv,
+                        observed_cluster_scores,
+                        cluster_score_func,
+                        num_permutations,
+                        progress_counter,
+                        max_workers,
+                    )
+                    for i in range(max_workers)
+                ]
 
-            # Start the permutation process in parallel
-            results = pool.starmap_async(_permutation_process_batch, params_list, chunksize=1)
-
-            # Update progress bar based on progress_counter
-            while not results.ready():
-                progress.update(progress_counter.value - progress.n)
-                results.wait(0.1)  # Wait for 100ms
-            # Ensure progress bar reaches 100%
-            progress.update(total_progress - progress.n)
+                with tqdm(total=total_progress, desc="Total progress", position=0) as progress:
+                    # Update progress bar based on progress_counter
+                    pending = set(futures)
+                    while pending:
+                        _, pending = wait(pending, timeout=0.1)  # Wait for 100ms
+                        progress.update(progress_counter.value - progress.n)
+                    # Collect results before completing the bar so a failed run never shows 100%
+                    results = [future.result() for future in futures]
+                    progress.update(total_progress - progress.n)
+    except (BrokenProcessPool, EOFError) as e:
+        raise RuntimeError(
+            "A permutation worker process exited unexpectedly. RISK starts workers with the "
+            "'spawn' method, which re-imports your main script in each worker. If you are "
+            "running from a script, guard its entry point with `if __name__ == '__main__':`."
+        ) from e
 
     # Accumulate results from each worker
-    for local_counts_depletion, local_counts_enrichment in results.get():
+    for local_counts_depletion, local_counts_enrichment in results:
         counts_depletion = np.add(counts_depletion, local_counts_depletion)
         counts_enrichment = np.add(counts_enrichment, local_counts_enrichment)
 
