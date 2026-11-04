@@ -200,12 +200,11 @@ def _get_composite_node_colors(
     # If blending is required
     else:
         for node, node_info in graph.node_id_to_domain_ids_and_significance_map.items():
-            domains = node_info["domains"]  # List of domain IDs
-            significances = node_info["significances"]  # List of significance values
+            significances = node_info["significances"]  # Domain ID to significance value
             # Filter domains and significances to keep only those with corresponding colors in domain_ids_to_colors
             filtered_domains_significances = [
                 (domain_id, float(significance))
-                for domain_id, significance in zip(domains, significances)
+                for domain_id, significance in significances.items()
                 if domain_id in domain_ids_to_colors
             ]
             # If no valid domains exist, skip this node
