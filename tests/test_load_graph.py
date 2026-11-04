@@ -521,8 +521,12 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
         graph.domain_id_to_node_labels_map, dict
     ), "Domain ID to node labels map should be a dictionary"
     assert isinstance(
-        graph.domain_id_to_enriched_node_labels_map, dict
-    ), "Domain ID to enriched node labels map should be a dictionary"
+        graph.domain_id_to_significant_node_labels_map, dict
+    ), "Domain ID to significant node labels map should be a dictionary"
+    # The primary domain is the domain with the largest absolute significance for each node
+    for node_id, domain_id in graph.node_id_to_primary_domain_id_map.items():
+        significances = graph.node_id_to_domain_ids_and_significance_map[node_id]["significances"]
+        assert domain_id == max(significances, key=lambda d: abs(significances[d]))
     assert isinstance(graph.network, nx.Graph), "Network should be a NetworkX graph"
     assert isinstance(
         graph.node_coordinates, np.ndarray
@@ -738,6 +742,9 @@ def test_pop_domain(graph):
     assert (
         domain_id_to_remove not in graph.domain_id_to_node_labels_map
     ), f"{domain_id_to_remove} should be removed from domain_id_to_node_labels_map"
+    assert (
+        domain_id_to_remove not in graph.domain_id_to_significant_node_labels_map
+    ), f"{domain_id_to_remove} should be removed from domain_id_to_significant_node_labels_map"
 
     # Check if the domain was removed from node_id_to_domain_ids_and_significance_map
     for _, domain_info in graph.node_id_to_domain_ids_and_significance_map.items():
@@ -1207,6 +1214,53 @@ def test_graph_construction_without_node_domain_metadata_defaults_empty():
 
     # pop() must not raise even though the provenance dictionaries are empty
     graph.pop(1)
+
+
+def test_graph_construction_does_not_mutate_input_network():
+    """
+    Ensure direct Graph construction unfolds 3D coordinates onto a copy of the input network,
+    leaving the caller's original network and its 'z' attributes untouched.
+    """
+    network = nx.Graph()
+    network.add_nodes_from([0, 1])
+    network.add_edge(0, 1)
+    for node in network.nodes:
+        network.nodes[node]["x"] = 1.0
+        network.nodes[node]["y"] = 1.0
+        network.nodes[node]["z"] = 1.0
+        network.nodes[node]["label"] = str(node)
+    original_attrs = {node: dict(attrs) for node, attrs in network.nodes(data=True)}
+
+    domains = pd.DataFrame(
+        {1: [5.0, 0.0], "all_domains": [[1], []], "primary_domain": [1, 0]},
+        index=[0, 1],
+    )
+    trimmed_domains = pd.DataFrame(
+        {
+            "normalized_description": ["term_a"],
+            "full_descriptions": [("term_a",)],
+            "significance_scores": [(5.0,)],
+        },
+        index=[1],
+    )
+
+    graph = Graph(
+        network=network,
+        annotation={},
+        stats_results={},
+        domains=domains,
+        trimmed_domains=trimmed_domains,
+        node_label_to_node_id_map={"0": 0, "1": 1},
+        node_significance_sums=np.array([5.0, 0.0]),
+    )
+
+    # The caller's original network must be untouched, 'z' included
+    for node, attrs in network.nodes(data=True):
+        assert attrs == original_attrs[node]
+
+    # The graph's own network must still be unfolded to 2D
+    for node in graph.network.nodes:
+        assert "z" not in graph.network.nodes[node]
 
 
 def test_graph_excludes_zero_significance_domain_from_provenance():

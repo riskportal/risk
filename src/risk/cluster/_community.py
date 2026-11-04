@@ -325,7 +325,7 @@ def calculate_spinglass_clusters(
     # Step 2: Run Spinglass on each connected component
     for component in components:
         # Extract the subgraph corresponding to the current component
-        subgraph = network.subgraph(component)
+        subgraph = subnetwork.subgraph(component)
         # Convert the subgraph to an iGraph object
         igraph_subgraph = ig.Graph.from_networkx(subgraph)
         # Ensure the subgraph is connected before running Spinglass
@@ -440,8 +440,15 @@ def _create_percentile_limited_subgraph(G: nx.Graph, fraction_shortest_edges: fl
     subgraph = nx.Graph()
     subgraph.add_nodes_from(G.nodes(data=True))  # Retain all nodes from the original graph
     subgraph.add_edges_from(edges_with_length[:cutoff_index])
-    # Step 5: Remove nodes with no edges
-    subgraph.remove_nodes_from(list(nx.isolates(subgraph)))
+    # Step 5: Remove nodes with no edges and report those the filter disconnected
+    isolates = list(nx.isolates(subgraph))
+    subgraph.remove_nodes_from(isolates)
+    disconnected = [node for node in isolates if G.degree(node) > 0]
+    if disconnected:
+        logger.info(
+            f"{len(disconnected)} of {G.number_of_nodes()} nodes lost all edges after keeping the "
+            f"shortest {fraction_shortest_edges:.0%} of edges and were excluded from clustering."
+        )
     # Step 6: Check if the resulting subgraph has no edges and issue a warning
     if subgraph.number_of_edges() == 0:
         raise Warning("The resulting subgraph has no edges. Consider adjusting the rank fraction.")

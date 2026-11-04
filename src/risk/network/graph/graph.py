@@ -78,8 +78,8 @@ class Graph:
 
         # NOTE: Below this point, instance attributes (i.e., self) will be used!
         self.domain_id_to_node_labels_map = self._create_domain_id_to_node_labels_map()
-        self.domain_id_to_enriched_node_labels_map = (
-            self._create_domain_id_to_enriched_node_labels_map()
+        self.domain_id_to_significant_node_labels_map = (
+            self._create_domain_id_to_significant_node_labels_map()
         )
         # Unfold the network's 3D coordinates to 2D and extract node coordinates
         self.network = self._unfold_sphere_to_plane(network)
@@ -87,6 +87,23 @@ class Graph:
 
         # NOTE: Only after the above attributes are initialized, we can create the summary
         self.summary = Summary(annotation, stats_results, self)
+
+    @property
+    def node_id_to_primary_domain_id_map(self) -> Dict[int, int]:
+        """
+        Map each node ID to its primary domain ID, the domain with the largest absolute summed
+        significance across its terms. Nodes without a primary domain, including those whose domain
+        was removed by the cluster size limits, are omitted. Derived from domain_id_to_node_ids_map,
+        so it stays consistent after pop.
+
+        Returns:
+            Dict[int, int]: A dictionary mapping node IDs to their primary domain IDs.
+        """
+        return {
+            node_id: domain_id
+            for domain_id, node_ids in self.domain_id_to_node_ids_map.items()
+            for node_id in node_ids
+        }
 
     def pop(self, domain_id: int) -> List[str]:
         """
@@ -108,6 +125,7 @@ class Graph:
             self.domain_id_to_domain_terms_map,
             self.domain_id_to_domain_info_map,
             self.domain_id_to_node_labels_map,
+            self.domain_id_to_significant_node_labels_map,
         ]
         # Remove the specified domain_id key from each mapping if it exists
         for mapping in domain_mappings:
@@ -225,7 +243,7 @@ class Graph:
 
         Returns:
             Dict[int, Dict]: A dictionary keyed by node ID whose values contain 'domains' holding the list
-                of domain columns with non-zero significance, 'significances' storing the corresponding
+                of graph domains with non-zero significance, 'significances' storing the corresponding
                 scores, 'terms' storing each domain's nonzero contributing term strings, and 'p_values'/
                 'fdrs' storing the raw statistics paired to the strongest contributing term. The latter
                 three are representative provenance for the domain association, not a node-level test.
@@ -236,10 +254,11 @@ class Graph:
         node_domain_fdrs = node_domain_fdrs or {}
         # Initialize an empty dictionary to store the result
         node_id_to_domain_ids_and_significances = {}
-        # Get the list of domain columns (excluding 'all domains' and 'primary domain')
-        domain_columns = domains.columns[
-            :-2
-        ]  # The last two columns are 'all domains' and 'primary domain'
+        # Get the domain columns (excluding 'all domains' and 'primary domain'), keeping only
+        # domains that exist in the graph, since domain 0 and trimmed domains are not real domains
+        domain_columns = domains.columns[:-2]  # The last two are 'all domains' and 'primary domain'
+        domain_ids = list(self.domain_id_to_domain_terms_map)
+        domain_columns = domain_columns[domain_columns.isin(domain_ids)]
         # Iterate over each row in the dataframe
         for idx, row in domains.iterrows():
             # Treat both positive (enrichment) and negative (depletion) as significant domain signal.
@@ -278,25 +297,25 @@ class Graph:
 
         return domain_id_to_label_map
 
-    def _create_domain_id_to_enriched_node_labels_map(self) -> Dict[int, List[str]]:
+    def _create_domain_id_to_significant_node_labels_map(self) -> Dict[int, List[str]]:
         """
-        Create a map from domain IDs to node labels based on enrichment membership.
+        Create a map from domain IDs to node labels based on significance membership.
         Unlike the primary domain mapping, this representation allows nodes to
-        appear in multiple domains if they show significant enrichment. This map
+        appear in multiple domains if they show significant enrichment or depletion. This map
         reflects functional association rather than layout or ownership.
 
         Returns:
             Dict[int, List[str]]: A dictionary mapping domain IDs to node labels
-            that are significantly enriched for that domain.
+            that are significant for that domain.
         """
-        domain_id_to_enriched_labels_map = defaultdict(list)
+        domain_id_to_significant_labels_map = defaultdict(list)
         for node_id, info in self.node_id_to_domain_ids_and_significance_map.items():
             for domain_id in info["domains"]:
-                domain_id_to_enriched_labels_map[domain_id].append(
+                domain_id_to_significant_labels_map[domain_id].append(
                     self.node_id_to_node_label_map[node_id]
                 )
 
-        return dict(domain_id_to_enriched_labels_map)
+        return dict(domain_id_to_significant_labels_map)
 
     def _unfold_sphere_to_plane(self, G: nx.Graph) -> nx.Graph:
         """
@@ -308,6 +327,8 @@ class Graph:
         Returns:
             nx.Graph: The network graph with updated 2D coordinates (only 'x' and 'y').
         """
+        # Copy to avoid mutating the caller's graph
+        G = G.copy()
         for node in G.nodes():
             if "z" in G.nodes[node]:
                 # Extract 3D coordinates

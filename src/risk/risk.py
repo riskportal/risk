@@ -30,4 +30,6 @@ class RISK(NetworkAPI, AnnotationAPI, ClusterAPI, StatsAPI, GraphAPI, PlotterAPI
         set_global_verbosity(verbose)
         # Provide public access to network parameters
         self.params = params
+        # Reset parameters so a new RISK instance does not inherit state from a prior one
+        self.params.initialize()
         super().__init__()

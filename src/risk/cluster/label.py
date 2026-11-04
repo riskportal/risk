@@ -119,6 +119,12 @@ def define_domains(
                 # Calculate the optimal threshold for clustering
                 cut_param = np.max(Z[:, 2]) * best_threshold
                 domains = fcluster(Z, cut_param, criterion=linkage_criterion).astype(int)
+                # Report when the cut merges every significant annotation into one domain
+                if len(kept_annotation_ids) > 1 and np.max(domains) == 1:
+                    logger.warning(
+                        f"All {len(kept_annotation_ids)} significant annotations were merged "
+                        "into a single domain. Consider lowering linkage_threshold."
+                    )
                 top_annotation.loc[kept_annotation_ids, "domain"] = domains
                 next_domain_id = int(np.max(domains)) + 1
             except (LinAlgError, ValueError):

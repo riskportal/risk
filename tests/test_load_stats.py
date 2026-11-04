@@ -3,6 +3,9 @@ tests/test_load_stats
 ~~~~~~~~~~~~~~~~~~~~~
 """
 
+import subprocess
+import sys
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -134,6 +137,32 @@ def test_run_permutation_multi_process(risk_obj, json_annotation, clusters_matri
     assert "enrichment_pvals" in stats_results
     assert stats_results["depletion_pvals"].shape[0] > 0
     assert stats_results["enrichment_pvals"].shape[0] > 0
+
+
+def test_run_permutation_multi_process_without_main_guard_raises(tmp_path):
+    """
+    Test that a script without an `if __name__ == "__main__"` guard raises instead of hanging
+    when the permutation test starts worker processes.
+
+    Args:
+        tmp_path: Pytest fixture providing a temporary directory for the script.
+    """
+    script = tmp_path / "no_guard.py"
+    script.write_text(
+        "import numpy as np\n"
+        "from scipy.sparse import csr_matrix\n"
+        "from risk.stats._stats.permutation.permutation import compute_permutation_test\n"
+        "rng = np.random.default_rng(0)\n"
+        "clusters = csr_matrix((rng.random((30, 30)) > 0.8).astype(np.float32))\n"
+        "annotation = csr_matrix((rng.random((30, 5)) > 0.8).astype(np.float32))\n"
+        "compute_permutation_test(clusters, annotation, num_permutations=10, max_workers=2)\n"
+    )
+    result = subprocess.run(
+        [sys.executable, str(script)], capture_output=True, text=True, timeout=120
+    )
+
+    assert result.returncode != 0
+    assert "permutation worker process exited unexpectedly" in result.stderr
 
 
 @pytest.mark.parametrize("score_metric", ["sum", "stdev"])

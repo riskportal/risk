@@ -59,16 +59,12 @@ def get_annotated_domain_colors(
     )
     annotated_colors = []
     for _, node_ids in graph.domain_id_to_node_ids_map.items():
-        if len(node_ids) > 1:
-            # For multi-node domains, choose the brightest color based on RGB sum
-            domain_colors = np.array([node_colors[node] for node in node_ids])
-            color = tuple(
-                domain_colors[np.argmax(domain_colors[:, :3].sum(axis=1))]
-            )  # Sum the RGB values
-        else:
-            # Single-node domains default to white (RGBA)
-            color = tuple([1.0, 1.0, 1.0, 1.0])
-
+        # Choose the brightest color based on RGB sum; for a single-node domain this
+        # is simply that node's own color
+        domain_colors = np.array([node_colors[node] for node in node_ids])
+        color = tuple(
+            domain_colors[np.argmax(domain_colors[:, :3].sum(axis=1))]
+        )  # Sum the RGB values
         annotated_colors.append(color)
 
     return annotated_colors
@@ -204,12 +200,11 @@ def _get_composite_node_colors(
     # If blending is required
     else:
         for node, node_info in graph.node_id_to_domain_ids_and_significance_map.items():
-            domains = node_info["domains"]  # List of domain IDs
-            significances = node_info["significances"]  # List of significance values
+            significances = node_info["significances"]  # Domain ID to significance value
             # Filter domains and significances to keep only those with corresponding colors in domain_ids_to_colors
             filtered_domains_significances = [
                 (domain_id, float(significance))
-                for domain_id, significance in zip(domains, significances)
+                for domain_id, significance in significances.items()
                 if domain_id in domain_ids_to_colors
             ]
             # If no valid domains exist, skip this node
