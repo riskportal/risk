@@ -521,8 +521,12 @@ def test_network_graph_structure(risk_obj, cytoscape_network, json_annotation):
         graph.domain_id_to_node_labels_map, dict
     ), "Domain ID to node labels map should be a dictionary"
     assert isinstance(
-        graph.domain_id_to_enriched_node_labels_map, dict
-    ), "Domain ID to enriched node labels map should be a dictionary"
+        graph.domain_id_to_significant_node_labels_map, dict
+    ), "Domain ID to significant node labels map should be a dictionary"
+    # The primary domain is the domain with the largest absolute significance for each node
+    for node_id, domain_id in graph.node_id_to_primary_domain_id_map.items():
+        significances = graph.node_id_to_domain_ids_and_significance_map[node_id]["significances"]
+        assert domain_id == max(significances, key=lambda d: abs(significances[d]))
     assert isinstance(graph.network, nx.Graph), "Network should be a NetworkX graph"
     assert isinstance(
         graph.node_coordinates, np.ndarray
@@ -738,6 +742,9 @@ def test_pop_domain(graph):
     assert (
         domain_id_to_remove not in graph.domain_id_to_node_labels_map
     ), f"{domain_id_to_remove} should be removed from domain_id_to_node_labels_map"
+    assert (
+        domain_id_to_remove not in graph.domain_id_to_significant_node_labels_map
+    ), f"{domain_id_to_remove} should be removed from domain_id_to_significant_node_labels_map"
 
     # Check if the domain was removed from node_id_to_domain_ids_and_significance_map
     for _, domain_info in graph.node_id_to_domain_ids_and_significance_map.items():
