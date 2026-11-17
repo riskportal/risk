@@ -139,7 +139,7 @@ class Labels:
         ids_to_keep = tuple(ids_to_keep) if ids_to_keep else tuple()
         # Set max_labels to the total number of domains if not provided (None)
         if max_labels is None:
-            max_labels = len(self.graph.domain_id_to_node_ids_map)
+            max_labels = len(self.graph.domain_id_to_displayed_node_ids_map)
         # Set max_label_lines and max_chars_per_line to large numbers if not provided (None)
         if max_label_lines is None:
             max_label_lines = int(1e6)
@@ -154,7 +154,7 @@ class Labels:
 
         # Calculate the center and radius of domains to position labels around the network
         domain_id_to_centroid_map = {}
-        for domain_id, node_ids in self.graph.domain_id_to_node_ids_map.items():
+        for domain_id, node_ids in self.graph.domain_id_to_displayed_node_ids_map.items():
             if node_ids:  # Skip if the domain has no nodes
                 domain_id_to_centroid_map[domain_id] = self._calculate_domain_centroid(node_ids)
 
@@ -209,12 +209,14 @@ class Labels:
         )
         # Convert all domain colors to RGBA using the to_rgba helper function
         fontcolor_rgba = to_rgba(
-            color=fontcolor, alpha=fontalpha, num_repeats=len(self.graph.domain_id_to_node_ids_map)
+            color=fontcolor,
+            alpha=fontalpha,
+            num_repeats=len(self.graph.domain_id_to_displayed_node_ids_map),
         )
         arrow_color_rgba = to_rgba(
             color=arrow_color,
             alpha=arrow_alpha,
-            num_repeats=len(self.graph.domain_id_to_node_ids_map),
+            num_repeats=len(self.graph.domain_id_to_displayed_node_ids_map),
         )
 
         # Annotate the network with labels
@@ -246,7 +248,7 @@ class Labels:
 
         # Overlay domain ID at the centroid regardless of max_labels if requested
         if overlay_ids:
-            for idx, domain in enumerate(self.graph.domain_id_to_node_ids_map):
+            for idx, domain in enumerate(self.graph.domain_id_to_displayed_node_ids_map):
                 centroid = domain_id_to_centroid_map[domain]
                 self.ax.text(
                     centroid[0],

@@ -58,7 +58,7 @@ def get_annotated_domain_colors(
         random_seed=random_seed,
     )
     annotated_colors = []
-    for _, node_ids in graph.domain_id_to_node_ids_map.items():
+    for _, node_ids in graph.domain_id_to_displayed_node_ids_map.items():
         # Choose the brightest color based on RGB sum; for a single-node domain this
         # is simply that node's own color
         domain_colors = np.array([node_colors[node] for node in node_ids])
@@ -118,7 +118,7 @@ def get_domain_colors(
     # Transform colors to ensure proper alpha values and intensity
     transformed_colors = _transform_colors(
         node_colors,
-        graph.node_significance_sums,
+        graph.displayed_node_significance_sums,
         min_scale=min_scale,
         max_scale=max_scale,
         scale_factor=scale_factor,
@@ -149,14 +149,16 @@ def _get_domain_ids_to_colors(
     """
     # Get colors for each domain based on node positions
     domain_colors = _get_colors(
-        graph.domain_id_to_node_ids_map,
+        graph.domain_id_to_displayed_node_ids_map,
         cmap=cmap,
         color=color,
         random_seed=random_seed,
     )
     # Assign colors to domains either based on the generated colormap or the user-specified colors
     domain_ids_to_colors = {}
-    for domain_id, domain_color in zip(graph.domain_id_to_node_ids_map.keys(), domain_colors):
+    for domain_id, domain_color in zip(
+        graph.domain_id_to_displayed_node_ids_map.keys(), domain_colors
+    ):
         if ids_to_colors and domain_id in ids_to_colors:
             # Convert user-specified colors to RGBA format
             user_rgba = to_rgba(ids_to_colors[domain_id])
@@ -192,7 +194,7 @@ def _get_composite_node_colors(
     composite_colors = np.zeros((num_nodes, 4))
     # If blending is not required, directly assign domain colors to nodes
     if not blend_colors:
-        for domain_id, nodes in graph.domain_id_to_node_ids_map.items():
+        for domain_id, nodes in graph.domain_id_to_displayed_node_ids_map.items():
             color = domain_ids_to_colors[domain_id]
             for node in nodes:
                 composite_colors[node] = color
@@ -222,6 +224,8 @@ def _get_composite_node_colors(
             # Assign the composite color to the node
             composite_colors[node] = composite_color
 
+    # Leave nodes pruned from display uncolored
+    composite_colors[graph.pruned_node_ids] = 0
     return composite_colors
 
 

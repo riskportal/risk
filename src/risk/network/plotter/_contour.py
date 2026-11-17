@@ -76,11 +76,15 @@ class Contour:
 
         # Ensure color is converted to RGBA with repetition matching the number of domains
         color_rgba = to_rgba(
-            color=color, alpha=alpha, num_repeats=len(self.graph.domain_id_to_node_ids_map)
+            color=color,
+            alpha=alpha,
+            num_repeats=len(self.graph.domain_id_to_displayed_node_ids_map),
         )
         edge_color_rgba = (
             to_rgba(
-                color=edge_color, alpha=alpha, num_repeats=len(self.graph.domain_id_to_node_ids_map)
+                color=edge_color,
+                alpha=alpha,
+                num_repeats=len(self.graph.domain_id_to_displayed_node_ids_map),
             )
             if edge_color is not None
             else None
@@ -88,7 +92,7 @@ class Contour:
         # Extract node coordinates from the network graph
         node_coordinates = self.graph.node_coordinates
         # Draw contours for each domain in the network
-        for idx, (_, node_ids) in enumerate(self.graph.domain_id_to_node_ids_map.items()):
+        for idx, (_, node_ids) in enumerate(self.graph.domain_id_to_displayed_node_ids_map.items()):
             # Use the provided alpha value if it's not None, otherwise use the color's alpha
             current_fill_alpha = fill_alpha if fill_alpha is not None else color_rgba[idx][3]
             if len(node_ids) > 1:

@@ -286,9 +286,9 @@ class Network:
         Returns:
             np.ndarray: Array of node sizes, with significant nodes larger than non-significant ones.
         """
-        # Merge all significant nodes from the domain_id_to_node_ids_map dictionary
+        # Merge all significant nodes from the domain_id_to_displayed_node_ids_map dictionary
         significant_nodes = set()
-        for _, node_ids in self.graph.domain_id_to_node_ids_map.items():
+        for _, node_ids in self.graph.domain_id_to_displayed_node_ids_map.items():
             significant_nodes.update(node_ids)
 
         # Initialize all node sizes to the non-significant size
