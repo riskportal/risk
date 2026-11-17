@@ -35,6 +35,7 @@ class Graph:
         node_domain_terms: Union[Dict[int, Dict[int, List[str]]], None] = None,
         node_domain_pvals: Union[Dict[int, Dict[int, float]], None] = None,
         node_domain_fdrs: Union[Dict[int, Dict[int, Union[float, None]]], None] = None,
+        pruned_node_ids: Union[List[int], np.ndarray, None] = None,
     ):
         """
         Initialize the Graph object.
@@ -54,6 +55,9 @@ class Graph:
             node_domain_fdrs (Dict[int, Dict[int, Union[float, None]]], optional): Raw FDR paired to the
                 same term as node_domain_pvals. Numeric under normal load_graph usage; None only
                 for direct construction with incomplete or omitted metadata. Defaults to None.
+            pruned_node_ids (List[int], np.ndarray, optional): IDs of nodes hidden from display by
+                display_prune_threshold. They keep their domains, so only the displayed views omit
+                them. Defaults to None.
         """
         # Initialize self.network downstream of the other attributes
         # All public attributes can be accessed after initialization
@@ -75,6 +79,9 @@ class Graph:
         )
         self.node_significance_sums = node_significance_sums
         self.node_label_to_node_id_map = node_label_to_node_id_map
+        self.pruned_node_ids = (
+            [] if pruned_node_ids is None else [int(node_id) for node_id in pruned_node_ids]
+        )
 
         # NOTE: Below this point, instance attributes (i.e., self) will be used!
         self.domain_id_to_node_labels_map = self._create_domain_id_to_node_labels_map()
@@ -104,6 +111,37 @@ class Graph:
             for domain_id, node_ids in self.domain_id_to_node_ids_map.items()
             for node_id in node_ids
         }
+
+    @property
+    def domain_id_to_displayed_node_ids_map(self) -> Dict[int, List[int]]:
+        """
+        Map each domain ID to its node IDs that are not pruned from display. Domains whose nodes are
+        all pruned are omitted. Derived from domain_id_to_node_ids_map, so it stays consistent after
+        pop.
+
+        Returns:
+            Dict[int, List[int]]: A dictionary mapping domain IDs to their displayed node IDs.
+        """
+        pruned_node_ids = set(self.pruned_node_ids)
+        displayed_node_ids_map = {}
+        for domain_id, node_ids in self.domain_id_to_node_ids_map.items():
+            displayed_node_ids = [node_id for node_id in node_ids if node_id not in pruned_node_ids]
+            if displayed_node_ids:
+                displayed_node_ids_map[domain_id] = displayed_node_ids
+
+        return displayed_node_ids_map
+
+    @property
+    def displayed_node_significance_sums(self) -> np.ndarray:
+        """
+        Significance sums per node with pruned nodes set to zero, which sets the node color intensity.
+
+        Returns:
+            np.ndarray: Array of node significance sums for display.
+        """
+        displayed_sums = np.array(self.node_significance_sums, dtype=float)
+        displayed_sums[self.pruned_node_ids] = 0
+        return displayed_sums
 
     def pop(self, domain_id: int) -> List[str]:
         """
