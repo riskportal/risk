@@ -141,9 +141,9 @@ class Network:
             node_edgecolor (str, List, Tuple, or np.ndarray, optional): Color of the node edges. Defaults to "black".
             edge_color (str, List, Tuple, or np.ndarray, optional): Color of the edges. Defaults to "black".
             node_alpha (float, None, optional): Transparency for the nodes. If provided, it overrides any existing alpha values
-                found in node_color. Defaults to 1.0.
+                found in node_color. Defaults to None.
             edge_alpha (float, None, optional): Transparency for the edges. If provided, it overrides any existing alpha values
-                found in node_color. Defaults to 1.0.
+                found in edge_color. Defaults to None.
 
         Raises:
             ValueError: If no valid nodes are found in the network graph.

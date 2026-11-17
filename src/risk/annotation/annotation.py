@@ -138,7 +138,7 @@ def define_top_annotation(
         significant_significance_matrix (np.ndarray): Enrichment matrix below alpha threshold.
         significant_binary_significance_matrix (np.ndarray): Binary significance matrix below alpha threshold.
         min_cluster_size (int, optional): Minimum cluster size. Defaults to 5.
-        max_cluster_size (int, optional): Maximum cluster size. Defaults to 10_000.
+        max_cluster_size (int, optional): Maximum cluster size. Defaults to 1000.
 
     Returns:
         pd.DataFrame: DataFrame with top annotations and their properties.
