@@ -157,19 +157,19 @@ def process_significant_clusters(
     display_prune_threshold: float = 0.0,
 ) -> Dict[str, Any]:
     """
-    Process clusters based on the display pruning settings.
+    Process clusters and identify the nodes to hide from display.
 
     Args:
         network (nx.Graph): The network data structure used for pruning neighbors.
         significant_clusters (Dict[str, Any]): Dictionary containing 'significance_matrix', 'significant_binary_significance_matrix', and 'significant_significance_matrix'.
-        display_prune_threshold (float, optional): Prunes spatially diffuse or isolated nodes based
+        display_prune_threshold (float, optional): Hides spatially diffuse or isolated nodes based
             on layout distance, using neither enrichment strength nor statistical significance.
-            Runs after enrichment, so clustering, enrichment, and statistical testing are
-            unaffected, but pruned nodes drop out of their domains, which changes domain
-            grouping, labels, and node sizes. Defaults to 0.0.
+            Display only: domains, terms, labels, and the summary are defined from all nodes, so
+            clustering, enrichment, and statistical testing are unaffected. Defaults to 0.0.
 
     Returns:
-        Dict[str, Any]: Processed clusters data, including the updated matrices and significance counts.
+        Dict[str, Any]: Processed clusters data, including the matrices, significance counts, and
+            the IDs of the nodes pruned from display.
     """
     significance_matrix = significant_clusters["significance_matrix"]
     significant_binary_significance_matrix = significant_clusters[
@@ -178,14 +178,10 @@ def process_significant_clusters(
     significant_significance_matrix = significant_clusters["significant_significance_matrix"]
 
     logger.debug(f"Display prune threshold: {display_prune_threshold}")
+    pruned_node_ids = np.array([], dtype=int)
     if display_prune_threshold:
-        (
-            significance_matrix,
-            significant_binary_significance_matrix,
-            significant_significance_matrix,
-        ) = _prune_neighbors(
+        pruned_node_ids = _prune_neighbors(
             network,
-            significance_matrix,
             significant_binary_significance_matrix,
             distance_threshold=display_prune_threshold,
         )
@@ -198,29 +194,25 @@ def process_significant_clusters(
         "significant_significance_matrix": significant_significance_matrix,
         "cluster_significance_counts": cluster_significance_counts,
         "node_significance_sums": node_significance_sums,
+        "pruned_node_ids": pruned_node_ids,
     }
 
 
 def _prune_neighbors(
     network: nx.Graph,
-    significance_matrix: np.ndarray,
     significant_binary_significance_matrix: np.ndarray,
     distance_threshold: float = 0.9,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """
-    Remove outliers based on their rank for edge lengths.
+    Identify outliers based on their rank for edge lengths.
 
     Args:
         network (nx.Graph): The network graph with nodes having IDs matching the matrix indices.
-        significance_matrix (np.ndarray): The significance matrix.
         significant_binary_significance_matrix (np.ndarray): The alpha threshold matrix.
         distance_threshold (float): Rank threshold (0 to 1) to determine outliers.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray, np.ndarray]:
-            - np.ndarray: The updated significance matrix with outliers set to zero.
-            - np.ndarray: The updated alpha threshold matrix with outliers set to zero.
-            - np.ndarray: The significant significance matrix, where non-significant entries are set to zero.
+        np.ndarray: IDs of the outlier nodes, including nodes with no significant neighbors.
     """
     # Identify indices with non-zero rows in the binary significance matrix
     non_zero_indices = np.where(significant_binary_significance_matrix.sum(axis=1) != 0)[0]
@@ -239,38 +231,17 @@ def _prune_neighbors(
 
     if not median_distances:
         logger.warning("No significant neighbors found for pruning.")
-        significant_significance_matrix = np.where(
-            significant_binary_significance_matrix == 1, significance_matrix, 0
-        )
-        return (
-            significance_matrix,
-            significant_binary_significance_matrix,
-            significant_significance_matrix,
-        )
+        return np.array([], dtype=int)
 
     # Calculate the distance threshold value based on rank
     distance_threshold_value = _calculate_threshold(median_distances, 1 - distance_threshold)
-    # Prune nodes that are outliers based on the distance threshold
-    for node, dist in distance_lookup.items():
-        if dist >= distance_threshold_value:
-            significance_matrix[node] = 0
-            significant_binary_significance_matrix[node] = 0
+    # Outliers are nodes beyond the distance threshold, plus isolated nodes
+    pruned_nodes = [
+        node for node, dist in distance_lookup.items() if dist >= distance_threshold_value
+    ]
+    pruned_nodes.extend(isolated_nodes)
 
-    # Prune isolated nodes (no significant neighbors)
-    for node in isolated_nodes:
-        significance_matrix[node] = 0
-        significant_binary_significance_matrix[node] = 0
-
-    # Create a matrix where non-significant entries are set to zero
-    significant_significance_matrix = np.where(
-        significant_binary_significance_matrix == 1, significance_matrix, 0
-    )
-
-    return (
-        significance_matrix,
-        significant_binary_significance_matrix,
-        significant_significance_matrix,
-    )
+    return np.array(sorted(pruned_nodes), dtype=int)
 
 
 def _median_distance_to_significant_neighbors(

@@ -57,11 +57,11 @@ class GraphAPI:
             fdr_cutoff (float, optional): FDR cutoff for significance. BH q-values are always
                 computed; this only thresholds them. Defaults to 1.0 (permissive; excludes
                 nothing based on FDR).
-            display_prune_threshold (float, optional): Prunes spatially diffuse or isolated
-                nodes based on layout distance, using neither enrichment strength nor statistical
-                significance. Runs after enrichment, so clustering, enrichment, and statistical
-                testing are unaffected, but pruned nodes drop out of their domains, which changes
-                domain grouping, labels, and node sizes. Defaults to 0.0.
+            display_prune_threshold (float, optional): Hides spatially diffuse or isolated nodes
+                based on layout distance, using neither enrichment strength nor statistical
+                significance. Display only: domains, terms, labels, and the summary are defined
+                from all nodes, so clustering, enrichment, and statistical testing are unaffected.
+                Defaults to 0.0.
             linkage_criterion (str, optional): Clustering criterion for defining domains. Defaults to "distance".
             linkage_method (str, optional): Clustering method to use. Choose "auto" to optimize. Defaults to "average".
             linkage_metric (str, optional): Metric to use for calculating distances. Choose "auto" to optimize.
@@ -107,7 +107,7 @@ class GraphAPI:
         )
 
         log_header("Processing significant clusters")
-        # Process significant clusters for layout-based display pruning
+        # Process significant clusters and identify nodes to prune from display
         processed_clusters = process_significant_clusters(
             network=network,
             significant_clusters=significant_clusters,
@@ -175,6 +175,7 @@ class GraphAPI:
             node_domain_terms=node_domain_terms,
             node_domain_pvals=node_domain_pvals,
             node_domain_fdrs=node_domain_fdrs,
+            pruned_node_ids=processed_clusters["pruned_node_ids"],
         )
 
     def _define_top_annotation(
