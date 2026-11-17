@@ -11,7 +11,7 @@ from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import pdist, squareform
 from sklearn.metrics import silhouette_score
 
-from risk.cluster import define_domains
+from risk.cluster import define_domains, process_significant_clusters
 from risk.network.graph._summary import Summary
 from risk.network.graph.api import GraphAPI
 from risk.network.graph.graph import Graph
@@ -1419,3 +1419,31 @@ def test_graph_displayed_views_omit_pruned_nodes(graph):
     assert set(displayed) <= set(graph.domain_id_to_node_ids_map)
     assert np.all(graph.displayed_node_significance_sums[graph.pruned_node_ids] == 0)
     assert np.any(graph.node_significance_sums[graph.pruned_node_ids] != 0)
+
+
+def test_process_significant_clusters_returns_pruned_nodes_without_changing_matrices():
+    """
+    Test that display pruning returns the isolated nodes and leaves the input matrices unchanged.
+    """
+    network = nx.Graph()
+    for node, x in enumerate([0.0, 1.0, 2.0, 9.0, 20.0]):
+        network.add_node(node, x=x, y=0.0)
+    network.add_edges_from([(0, 1), (1, 2), (2, 3)])  # Node 4 has no neighbors
+    matrix = np.ones((5, 1))
+    significant_clusters = {
+        "significance_matrix": matrix.copy(),
+        "significant_binary_significance_matrix": matrix.copy(),
+        "significant_significance_matrix": matrix.copy(),
+    }
+
+    unpruned = process_significant_clusters(network, significant_clusters)
+    pruned = process_significant_clusters(
+        network, significant_clusters, display_prune_threshold=0.2
+    )
+
+    assert len(unpruned["pruned_node_ids"]) == 0
+    assert 4 in pruned["pruned_node_ids"]
+    for key, value in significant_clusters.items():
+        assert np.array_equal(pruned[key], matrix), key
+        assert np.array_equal(value, matrix), key
+    assert np.array_equal(pruned["node_significance_sums"], matrix.sum(axis=1))

@@ -3,6 +3,8 @@ tests/test_load_plotter
 ~~~~~~~~~~~~~~~~~~~~~~~
 """
 
+import copy
+
 import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
@@ -2037,5 +2039,28 @@ def test_get_annotated_node_colors_and_sizes_skip_pruned_nodes(risk_obj, graph):
         assert graph.pruned_node_ids
         assert np.all(colors[graph.pruned_node_ids, :3] == 1.0)
         assert np.all(sizes[graph.pruned_node_ids] == 25)
+    finally:
+        plt.close("all")
+
+
+def test_plot_with_fully_pruned_domain_skips_it(risk_obj, graph):
+    """
+    Test that a domain whose nodes are all pruned from display is not drawn or labeled.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object built with a display prune threshold.
+    """
+    hidden_domain_id = next(iter(graph.domain_id_to_node_ids_map))
+    hidden_graph = copy.copy(graph)
+    hidden_graph.pruned_node_ids = list(graph.domain_id_to_node_ids_map[hidden_domain_id])
+    plotter = initialize_plotter(risk_obj, hidden_graph)
+    try:
+        plotter.plot_contours()
+        plotter.plot_labels(ids_to_keep=[hidden_domain_id], overlay_ids=True)
+        drawn_text = {text.get_text() for text in plotter.ax.texts}
+
+        assert hidden_domain_id not in hidden_graph.domain_id_to_displayed_node_ids_map
+        assert str(hidden_domain_id) not in drawn_text
     finally:
         plt.close("all")
