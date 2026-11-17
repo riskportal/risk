@@ -18,6 +18,10 @@ from ..log import logger
 from ._nltk_setup import setup_nltk_resources
 
 
+# Annotation boilerplate that carries no meaning in a domain label
+BOILERPLATE_WORDS = {"via", "involved", "process"}
+
+
 def initialize_nltk():
     """Initialize all required NLTK components."""
     setup_nltk_resources()
@@ -27,7 +31,7 @@ def initialize_nltk():
     from nltk.stem import WordNetLemmatizer
 
     global STOP_WORDS, LEMMATIZER
-    STOP_WORDS = set(stopwords.words("english"))
+    STOP_WORDS = set(stopwords.words("english")) | BOILERPLATE_WORDS
     LEMMATIZER = WordNetLemmatizer()
 
 
@@ -251,8 +255,8 @@ def get_weighted_description(words_column: pd.Series, scores_column: pd.Series) 
             token_clean = re.sub(r"[^\w\-]", "", token).strip()
             if not token_clean:
                 continue
-            # Skip stopwords
-            if token_clean in STOP_WORDS:
+            # Skip stopwords, matching case-insensitively so capitalized terms are filtered too
+            if token_clean.lower() in STOP_WORDS:
                 continue
             # Lemmatize the token to merge similar forms
             token_norm = LEMMATIZER.lemmatize(token_clean)

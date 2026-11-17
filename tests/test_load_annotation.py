@@ -5,8 +5,11 @@ tests/test_load_annotation
 
 import json
 
+import pandas as pd
 import pytest
 from scipy.sparse import csr_matrix, vstack
+
+from risk.annotation import get_weighted_description
 
 
 def test_missing_annotation_file(risk_obj, dummy_network):
@@ -344,3 +347,16 @@ def test_min_max_nodes_per_term(risk_obj, cytoscape_network, data_path):
         gene_count = len(raw_dict[term])
         assert gene_count >= min_nodes, f"Term {term} has too few genes: {gene_count}"
         assert gene_count <= max_nodes, f"Term {term} has too many genes: {gene_count}"
+
+
+def test_get_weighted_description_skips_stopwords_and_boilerplate():
+    """
+    Test that stopwords are matched case-insensitively and boilerplate words are dropped, while the
+    casing of the remaining words is kept.
+    """
+    description = get_weighted_description(
+        pd.Series(["Into RNA metabolic process", "Involved in RNA splicing via spliceosome"]),
+        pd.Series([1.0, 1.0]),
+    )
+
+    assert set(description.split()) == {"RNA", "metabolic", "splicing", "spliceosome"}
