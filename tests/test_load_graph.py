@@ -1359,3 +1359,63 @@ def _check_component_sizes(domain_id_to_node_id_map, min_cluster_size, max_clust
             f"Domain {domain_id} has size {component_size}, which is outside the range "
             f"{min_cluster_size} to {max_cluster_size}"
         )
+
+
+def test_display_prune_threshold_does_not_change_domains_or_summary(
+    risk_obj, cytoscape_network, json_annotation
+):
+    """
+    Test that display pruning leaves domain membership, labels, and the summary untouched.
+
+    Args:
+        risk_obj: The RISK object instance used for loading clusters and graphs.
+        cytoscape_network: The network object to be used for cluster and graph generation.
+        json_annotation: The JSON annotation associated with the network.
+    """
+    clusters = risk_obj.cluster_leiden(
+        network=cytoscape_network, fraction_shortest_edges=0.75, resolution=1.0, random_seed=887
+    )
+    stats_results = risk_obj.run_permutation(
+        annotation=json_annotation,
+        clusters=clusters,
+        null_distribution="network",
+        score_metric="stdev",
+        num_permutations=20,
+        random_seed=887,
+        max_workers=1,
+    )
+    graphs = [
+        risk_obj.load_graph(
+            network=cytoscape_network,
+            annotation=json_annotation,
+            stats_results=stats_results,
+            pval_cutoff=0.05,
+            display_prune_threshold=threshold,
+        )
+        for threshold in (0.0, 0.1)
+    ]
+    unpruned, pruned = graphs
+
+    assert not unpruned.pruned_node_ids
+    assert pruned.pruned_node_ids
+    assert pruned.domain_id_to_node_ids_map == unpruned.domain_id_to_node_ids_map
+    assert pruned.domain_id_to_domain_terms_map == unpruned.domain_id_to_domain_terms_map
+    pd.testing.assert_frame_equal(pruned.summary.load(), unpruned.summary.load())
+
+
+def test_graph_displayed_views_omit_pruned_nodes(graph):
+    """
+    Test that pruned nodes keep their domains but are omitted from the displayed views.
+
+    Args:
+        graph: The graph object built with a display prune threshold.
+    """
+    pruned = set(graph.pruned_node_ids)
+    all_node_ids = {n for ids in graph.domain_id_to_node_ids_map.values() for n in ids}
+    displayed = graph.domain_id_to_displayed_node_ids_map
+
+    assert pruned and pruned & all_node_ids
+    assert not pruned & {n for ids in displayed.values() for n in ids}
+    assert set(displayed) <= set(graph.domain_id_to_node_ids_map)
+    assert np.all(graph.displayed_node_significance_sums[graph.pruned_node_ids] == 0)
+    assert np.any(graph.node_significance_sums[graph.pruned_node_ids] != 0)

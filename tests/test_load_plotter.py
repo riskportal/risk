@@ -2019,3 +2019,23 @@ def test_apply_str_transformation_deduplicates_after_transform(graph):
         assert result == ["ALPHA"]
     finally:
         plt.close("all")
+
+
+def test_get_annotated_node_colors_and_sizes_skip_pruned_nodes(risk_obj, graph):
+    """
+    Test that nodes pruned from display are drawn as non-significant.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object built with a display prune threshold.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    try:
+        colors = plotter.get_annotated_node_colors(nonsignificant_color="white")
+        sizes = plotter.get_annotated_node_sizes(significant_size=50, nonsignificant_size=25)
+
+        assert graph.pruned_node_ids
+        assert np.all(colors[graph.pruned_node_ids, :3] == 1.0)
+        assert np.all(sizes[graph.pruned_node_ids] == 25)
+    finally:
+        plt.close("all")
