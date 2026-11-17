@@ -25,8 +25,8 @@ LINKAGE_METHODS = tuple(sorted({
 }))
 LINKAGE_METRICS = tuple(sorted({
     "braycurtis", "canberra", "chebyshev", "cityblock", "correlation", "cosine", "dice", "euclidean",
-    "hamming", "jaccard", "jensenshannon", "kulczynski1", "mahalanobis", "matching", "minkowski",
-    "rogerstanimoto", "russellrao", "seuclidean", "sokalmichener", "sokalsneath", "sqeuclidean", "yule",
+    "hamming", "jaccard", "jensenshannon", "mahalanobis", "matching", "minkowski", "rogerstanimoto",
+    "russellrao", "seuclidean", "sokalsneath", "sqeuclidean", "yule",
 }))
 # fmt: on
 

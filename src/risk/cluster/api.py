@@ -140,7 +140,7 @@ class ClusterAPI:
             network (nx.Graph): The network graph to cluster.
             fraction_shortest_edges (float, optional): Rank-based fraction (0, 1] of the shortest edges
                 retained when building the clustering subgraph. Defaults to 0.5.
-            resolution (float, optional): Resolution parameter for Louvain algorithm. Defaults to 1.0.
+            resolution (float, optional): Resolution parameter for Louvain algorithm. Defaults to 0.1.
             random_seed (int, optional): Random seed for reproducibility. Defaults to 888.
 
         Returns:

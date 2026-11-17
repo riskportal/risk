@@ -54,6 +54,7 @@ class Labels:
         overlay_ids: bool = False,
         ids_to_keep: Union[List, Tuple, np.ndarray, None] = None,
         ids_to_labels: Union[Dict[int, str], None] = None,
+        label_mode: str = "compressed",
     ) -> None:
         """
         Annotate the network graph with labels for different domains, positioned around the network for clarity.
@@ -90,8 +91,13 @@ class Labels:
             ids_to_labels (Dict[int, str], optional): A dictionary mapping domain IDs to custom labels (strings). Labels are wrapped
                 to respect `max_chars_per_line` and `max_label_lines`. To supply exact multi-line formatting, join lines with "::::"
                 (e.g., "RNA splicing::::regulation"); strings containing "::::" are stored verbatim. Defaults to None.
+            label_mode (str, optional): How domain labels are generated. Choose "compressed" for a weighted summary of the words
+                across a domain's terms, or "top_term" for the domain's highest-scoring annotation term, kept verbatim. In "top_term"
+                mode, `words_to_omit`, `min_chars_per_line`, and `min_label_lines` do not apply, as with `ids_to_labels`, which takes
+                precedence in either mode. Defaults to "compressed".
 
         Raises:
+            ValueError: If `label_mode` is not "compressed" or "top_term".
             ValueError: If the number of provided `ids_to_keep` exceeds `max_labels`.
         """
         # Log the plotting parameters
@@ -120,7 +126,14 @@ class Labels:
             label_overlay_ids=overlay_ids,
             label_ids_to_keep=ids_to_keep,
             label_ids_to_labels=ids_to_labels,
+            label_mode=label_mode,
         )
+
+        # Validate label_mode before any label processing
+        if label_mode not in ("compressed", "top_term"):
+            raise ValueError(
+                f"Invalid label_mode '{label_mode}'. Allowed values are 'compressed' or 'top_term'."
+            )
 
         # Convert ids_to_keep to a tuple if it is not None
         ids_to_keep = tuple(ids_to_keep) if ids_to_keep else tuple()
@@ -135,6 +148,9 @@ class Labels:
         # Normalize words_to_omit to lowercase
         if words_to_omit:
             words_to_omit = list(set(word.lower() for word in words_to_omit))
+        # Label each domain with its top term; explicit ids_to_labels entries take precedence
+        if label_mode == "top_term":
+            ids_to_labels = {**self._get_top_term_labels(), **(ids_to_labels or {})}
 
         # Calculate the center and radius of domains to position labels around the network
         domain_id_to_centroid_map = {}
@@ -348,6 +364,19 @@ class Labels:
                     "shrinkB": arrow_tip_shrink,
                 },
             )
+
+    def _get_top_term_labels(self) -> Dict[int, str]:
+        """
+        Get each domain's highest-scoring annotation term, for use as its label.
+
+        Returns:
+            Dict[int, str]: A dictionary mapping domain IDs to their highest-scoring term.
+        """
+        # Full descriptions are already sorted by significance score in descending order
+        return {
+            domain_id: domain_info["full_descriptions"][0]
+            for domain_id, domain_info in self.graph.domain_id_to_domain_info_map.items()
+        }
 
     def _calculate_domain_centroid(self, nodes: List) -> tuple:
         """

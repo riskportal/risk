@@ -257,6 +257,7 @@ def plot_labels(plotter):
             overlay_ids=False,
             ids_to_keep=None,
             ids_to_labels=None,
+            label_mode="compressed",
         )
     finally:
         plt.close("all")
@@ -1325,6 +1326,146 @@ def test_plot_labels_with_custom_params(
                 ids_to_keep=ids_to_keep,
                 ids_to_labels=ids_to_labels,
             )
+    finally:
+        plt.close("all")
+
+
+def _drawn_label_texts(plotter):
+    """
+    Collect the label text drawn on the plotter's axes, with line breaks replaced by spaces.
+
+    Args:
+        plotter: The plotter object whose axes hold the drawn labels.
+
+    Returns:
+        list: Whitespace-normalized text of each drawn label.
+    """
+    return [" ".join(text.get_text().split()) for text in plotter.ax.texts]
+
+
+def _top_terms(graph):
+    """
+    Collect the highest-scoring term of every domain, whitespace-normalized.
+
+    Args:
+        graph: The graph object whose domain info map holds the sorted terms.
+
+    Returns:
+        set: The highest-scoring term of each domain.
+    """
+    return {
+        " ".join(domain_info["full_descriptions"][0].split())
+        for domain_info in graph.domain_id_to_domain_info_map.values()
+    }
+
+
+def test_plot_labels_top_term_draws_highest_scoring_term(risk_obj, graph):
+    """
+    Test that label_mode="top_term" labels domains with their highest-scoring term.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which labels will be plotted.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    try:
+        plotter.plot_labels(label_mode="top_term")
+        drawn_labels = _drawn_label_texts(plotter)
+
+        assert drawn_labels
+        assert set(drawn_labels) <= _top_terms(graph)
+    finally:
+        plt.close("all")
+
+
+def test_plot_labels_top_term_ignores_words_to_omit_and_min_label_lines(risk_obj, graph):
+    """
+    Test that label_mode="top_term" keeps terms verbatim, ignoring words_to_omit and min_label_lines.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which labels will be plotted.
+    """
+    top_terms = _top_terms(graph)
+    every_word = {word.lower() for term in top_terms for word in term.split()}
+    plotter = initialize_plotter(risk_obj, graph)
+    try:
+        plotter.plot_labels(
+            label_mode="top_term", words_to_omit=list(every_word), min_label_lines=2
+        )
+        drawn_labels = _drawn_label_texts(plotter)
+
+        assert drawn_labels
+        assert set(drawn_labels) <= top_terms
+    finally:
+        plt.close("all")
+
+
+def test_plot_labels_top_term_ids_to_labels_takes_precedence(risk_obj, graph):
+    """
+    Test that an ids_to_labels entry replaces the top-term label of its domain.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which labels will be plotted.
+    """
+    domain_id = next(
+        d for d in graph.domain_id_to_domain_info_map if d in graph.domain_id_to_node_ids_map
+    )
+    top_term = " ".join(
+        graph.domain_id_to_domain_info_map[domain_id]["full_descriptions"][0].split()
+    )
+    plotter = initialize_plotter(risk_obj, graph)
+    try:
+        plotter.plot_labels(
+            label_mode="top_term",
+            ids_to_keep=[domain_id],
+            ids_to_labels={domain_id: "custom label"},
+        )
+        drawn_labels = _drawn_label_texts(plotter)
+
+        other_labels = set(drawn_labels) - {"custom label"}
+
+        assert "custom label" in drawn_labels
+        assert top_term not in drawn_labels
+        assert other_labels and other_labels <= _top_terms(graph)
+    finally:
+        plt.close("all")
+
+
+def test_plot_labels_default_label_mode_is_compressed(risk_obj, graph):
+    """
+    Test that omitting label_mode draws the same labels as label_mode="compressed".
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which labels will be plotted.
+    """
+    default_plotter = initialize_plotter(risk_obj, graph)
+    compressed_plotter = initialize_plotter(risk_obj, graph)
+    try:
+        default_plotter.plot_labels()
+        compressed_plotter.plot_labels(label_mode="compressed")
+        default_labels = _drawn_label_texts(default_plotter)
+
+        assert default_labels
+        assert sorted(default_labels) == sorted(_drawn_label_texts(compressed_plotter))
+    finally:
+        plt.close("all")
+
+
+def test_plot_labels_invalid_label_mode_raises(risk_obj, graph):
+    """
+    Test that an unsupported label_mode raises ValueError.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which labels will be plotted.
+    """
+    plotter = initialize_plotter(risk_obj, graph)
+    try:
+        with pytest.raises(ValueError, match="label_mode"):
+            plotter.plot_labels(label_mode="nonsense")
     finally:
         plt.close("all")
 

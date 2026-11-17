@@ -774,6 +774,8 @@ def test_pop_domain(graph):
     [
         {"linkage_method": "not_a_method"},
         {"linkage_metric": "not_a_metric"},
+        {"linkage_metric": "sokalmichener"},  # removed from SciPy
+        {"linkage_metric": "kulczynski1"},  # removed from SciPy
         {"linkage_threshold": "bad"},
         {"linkage_threshold": 0.0},  # out of (0, 1]
         {"linkage_threshold": 1.5},  # out of (0, 1]
