@@ -20,7 +20,7 @@ from ._nltk_setup import setup_nltk_resources
 
 # Annotation boilerplate that carries no meaning in a domain label
 BOILERPLATE_WORDS = {"via", "involved", "process"}
-# Number of words in a description of specific words
+# Maximum number of words in a description of specific words
 SPECIFIC_LABEL_WORDS = 6
 
 
@@ -318,17 +318,16 @@ def _get_specific_description(
         str: The most specific words, or an empty string if no word is specific.
     """
     # Weigh each word by its rarity, dropping words that are shared by most terms
-    specific_counts = {
-        word: count * word_rarity.get(word, 0.0)
-        for word, count in weighted_counts.items()
-        if count * word_rarity.get(word, 0.0) > 0
+    rarity_counts = {
+        word: count * word_rarity.get(word, 0.0) for word, count in weighted_counts.items()
     }
+    specific_counts = {word: count for word, count in rarity_counts.items() if count > 0}
     if not specific_counts:
         return ""
 
     # Keep the heaviest words, one per group of near-duplicates, listed by weight
     specific_words = _select_representative_words(specific_counts)[:SPECIFIC_LABEL_WORDS]
-    # Find the phrase that contains the most of them, preferring the higher score, then the earlier phrase
+    # Find the phrase with the most of them, preferring the higher score, then the earlier phrase
     phrase_tokens = [_tokenize_term(phrase) for phrase in words_column]
     scores = scores_column.fillna(float("-inf")).tolist()
     best_index = max(
