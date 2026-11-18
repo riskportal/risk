@@ -12,6 +12,7 @@ from scipy.spatial.distance import pdist, squareform
 from sklearn.metrics import silhouette_score
 
 from risk.cluster import define_domains, process_significant_clusters
+from risk.network.graph._stats import calculate_significance_matrices
 from risk.network.graph._summary import Summary
 from risk.network.graph.api import GraphAPI
 from risk.network.graph.graph import Graph
@@ -1447,3 +1448,18 @@ def test_process_significant_clusters_returns_pruned_nodes_without_changing_matr
         assert np.array_equal(pruned[key], matrix), key
         assert np.array_equal(value, matrix), key
     assert np.array_equal(pruned["node_significance_sums"], matrix.sum(axis=1))
+
+
+def test_significance_matrix_is_the_negative_log10_pvalue():
+    """
+    Test that the significance matrix is -log10(p), positive for enrichment and negative for
+    depletion.
+    """
+    enrichment_pvals = np.array([[0.01, 0.5], [0.001, 1.0]])
+    depletion_pvals = np.array([[0.2, 0.05], [0.9, 0.001]])
+
+    right = calculate_significance_matrices(depletion_pvals, enrichment_pvals, tail="right")
+    left = calculate_significance_matrices(depletion_pvals, enrichment_pvals, tail="left")
+
+    assert np.allclose(right["significance_matrix"], -np.log10(enrichment_pvals))
+    assert np.allclose(left["significance_matrix"], np.log10(depletion_pvals))

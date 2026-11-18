@@ -38,21 +38,17 @@ def calculate_significance_matrices(
     depletion_alpha_threshold_matrix = _compute_threshold_matrix(
         depletion_pvals, depletion_qvals, pval_cutoff=pval_cutoff, fdr_cutoff=fdr_cutoff
     )
-    # Compute the depletion matrix using both q-values and p-values
-    depletion_matrix = (depletion_qvals**2) * (depletion_pvals**0.5)
 
     # Apply FDR correction to enrichment p-values
     enrichment_qvals = np.apply_along_axis(fdrcorrection, 1, enrichment_pvals)[:, 1, :]
     enrichment_alpha_threshold_matrix = _compute_threshold_matrix(
         enrichment_pvals, enrichment_qvals, pval_cutoff=pval_cutoff, fdr_cutoff=fdr_cutoff
     )
-    # Compute the enrichment matrix using both q-values and p-values
-    enrichment_matrix = (enrichment_pvals**0.5) * (enrichment_qvals**2)
 
     # Floor exact zeros to avoid infinities from -log10(0) in downstream magnitude scaling.
     p_floor = np.finfo(float).eps
-    log_depletion_matrix = -np.log10(np.clip(depletion_matrix, p_floor, 1.0))
-    log_enrichment_matrix = -np.log10(np.clip(enrichment_matrix, p_floor, 1.0))
+    log_depletion_matrix = -np.log10(np.clip(depletion_pvals, p_floor, 1.0))
+    log_enrichment_matrix = -np.log10(np.clip(enrichment_pvals, p_floor, 1.0))
 
     # Select the appropriate significance matrices based on the specified tail
     (
