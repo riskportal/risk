@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from scipy.sparse import csr_matrix, vstack
 
-from risk.annotation import get_weighted_description
+from risk.annotation import get_specific_description, get_weighted_description, get_word_rarity
 
 
 def test_missing_annotation_file(risk_obj, dummy_network):
@@ -360,3 +360,93 @@ def test_get_weighted_description_skips_stopwords_and_boilerplate():
     )
 
     assert set(description.split()) == {"RNA", "metabolic", "splicing", "spliceosome"}
+
+
+def _synthetic_terms():
+    """
+    Build a 60-term library where most terms start with the shared words "regulation of".
+
+    Returns:
+        list: The synthetic annotation terms.
+    """
+    fillers = [f"regulation of filler{i}" for i in range(54)]
+    return fillers + [
+        "regulation of ribosome biogenesis assembly",
+        "regulation of peroxisome organization",
+        "regulation of telomere maintenance",
+        "regulation of kinetochore assembly",
+        "regulation of autophagy initiation",
+        "regulation of glycolysis",
+    ]
+
+
+def test_get_weighted_description_is_unchanged():
+    """
+    Test that the compressed description keeps its established output.
+    """
+    description = get_weighted_description(
+        pd.Series(
+            [
+                "Into RNA metabolic process",
+                "RNA splicing via spliceosome",
+                "regulation of RNA splicing",
+            ]
+        ),
+        pd.Series([1.0, 3.0, 2.0]),
+    )
+
+    assert description == "RNA splicing spliceosome regulation metabolic"
+
+
+def test_get_specific_description_ranks_shared_words_behind_specific_ones():
+    """
+    Test that a word shared by most terms is dropped while the specific words are kept.
+    """
+    phrases = pd.Series(
+        [
+            "regulation of ribosome biogenesis",
+            "regulation of telomere maintenance",
+            "regulation of peroxisome organization",
+            "regulation of kinetochore assembly",
+        ]
+    )
+    scores = pd.Series([1.0, 2.0, 3.0, 4.0])
+    word_rarity = get_word_rarity(_synthetic_terms())
+
+    compressed = get_weighted_description(phrases, scores)
+    specific = get_specific_description(phrases, scores, word_rarity)
+
+    assert compressed.split()[0] == "regulation"
+    assert "regulation" not in specific.split()
+    assert len(specific.split()) == 6
+
+
+def test_get_specific_description_orders_words_by_the_best_term():
+    """
+    Test that words are written in the order of the phrase that contains the most of them.
+    """
+    phrases = pd.Series(
+        ["regulation of peroxisome organization", "regulation of ribosome biogenesis assembly"]
+    )
+    scores = pd.Series([5.0, 1.0])
+    word_rarity = get_word_rarity(_synthetic_terms())
+
+    description = get_specific_description(phrases, scores, word_rarity)
+
+    assert description == "ribosome biogenesis assembly peroxisome organization"
+
+
+def test_get_specific_description_falls_back_for_a_small_library():
+    """
+    Test that a library with fewer than 30 terms has no rarity and keeps the compressed description.
+    """
+    phrases = pd.Series(
+        ["regulation of peroxisome organization", "regulation of ribosome assembly"]
+    )
+    scores = pd.Series([5.0, 1.0])
+    word_rarity = get_word_rarity(_synthetic_terms()[:10])
+
+    assert word_rarity == {}
+    assert get_specific_description(phrases, scores, word_rarity) == get_weighted_description(
+        phrases, scores
+    )

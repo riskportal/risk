@@ -1456,6 +1456,28 @@ def test_plot_labels_default_label_mode_is_compressed(risk_obj, graph):
         plt.close("all")
 
 
+def test_plot_labels_specific_draws_specific_descriptions(risk_obj, graph):
+    """
+    Test that label_mode="specific" labels domains with their specific descriptions.
+
+    Args:
+        risk_obj: The RISK object instance used for plotting.
+        graph: The graph object on which labels will be plotted.
+    """
+    specific_terms = {
+        " ".join(terms.split()) for terms in graph.domain_id_to_specific_terms_map.values()
+    }
+    plotter = initialize_plotter(risk_obj, graph)
+    try:
+        plotter.plot_labels(label_mode="specific")
+        drawn_labels = _drawn_label_texts(plotter)
+
+        assert drawn_labels
+        assert set(drawn_labels) <= specific_terms
+    finally:
+        plt.close("all")
+
+
 def test_plot_labels_invalid_label_mode_raises(risk_obj, graph):
     """
     Test that an unsupported label_mode raises ValueError.
