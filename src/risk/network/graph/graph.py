@@ -65,6 +65,15 @@ class Graph:
         self.domain_id_to_domain_terms_map = self._create_domain_id_to_domain_terms_map(
             trimmed_domains
         )
+        # Direct construction may omit specific descriptions, so fall back to the normalized ones
+        self.domain_id_to_specific_terms_map = self._create_domain_id_to_domain_terms_map(
+            trimmed_domains,
+            (
+                "specific_description"
+                if "specific_description" in trimmed_domains
+                else "normalized_description"
+            ),
+        )
         self.domain_id_to_domain_info_map = self._create_domain_id_to_domain_info_map(
             trimmed_domains
         )
@@ -161,6 +170,7 @@ class Graph:
         domain_mappings = [
             self.domain_id_to_node_ids_map,
             self.domain_id_to_domain_terms_map,
+            self.domain_id_to_specific_terms_map,
             self.domain_id_to_domain_info_map,
             self.domain_id_to_node_labels_map,
             self.domain_id_to_significant_node_labels_map,
@@ -202,13 +212,14 @@ class Graph:
         return domain_id_to_node_ids_map
 
     def _create_domain_id_to_domain_terms_map(
-        self, trimmed_domains: pd.DataFrame
+        self, trimmed_domains: pd.DataFrame, column: str = "normalized_description"
     ) -> Dict[int, Any]:
         """
         Create a mapping from domain IDs to their corresponding terms.
 
         Args:
             trimmed_domains (pd.DataFrame): DataFrame containing domain IDs and their corresponding labels.
+            column (str, optional): Column holding the terms. Defaults to "normalized_description".
 
         Returns:
             Dict[int, Any]: A dictionary mapping domain IDs to their corresponding terms.
@@ -216,7 +227,7 @@ class Graph:
         return dict(
             zip(
                 trimmed_domains.index,
-                trimmed_domains["normalized_description"],
+                trimmed_domains[column],
             )
         )
 

@@ -14,7 +14,7 @@ from scipy.spatial.distance import pdist, squareform
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
-from risk.annotation import get_weighted_description
+from risk.annotation import get_specific_description, get_weighted_description
 
 from ..log import logger
 
@@ -186,6 +186,7 @@ def trim_domains(
     top_annotation: pd.DataFrame,
     min_cluster_size: int = 5,
     max_cluster_size: int = 1000,
+    word_rarity: Union[Dict[str, float], None] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Trim domains that do not meet size criteria and find outliers.
@@ -195,6 +196,9 @@ def trim_domains(
         top_annotation (pd.DataFrame): DataFrame of top annotations data for the network nodes.
         min_cluster_size (int, optional): Minimum size of a cluster to be retained. Defaults to 5.
         max_cluster_size (int, optional): Maximum size of a cluster to be retained. Defaults to 1000.
+        word_rarity (Dict[str, float], optional): Rarity of each word across the annotation terms, used
+            to label domains with their specific words. Defaults to None (specific descriptions match
+            the normalized descriptions).
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame]:
@@ -238,12 +242,21 @@ def trim_domains(
         ),
         axis=1,
     )
+    domain_labels["specific_terms"] = domain_labels.apply(
+        lambda row: get_specific_description(
+            pd.Series(row["full_terms"]),
+            pd.Series(row["significance_scores"]),
+            word_rarity or {},
+        ),
+        axis=1,
+    )
 
     # Rename the columns as necessary
     trimmed_domains_matrix = domain_labels.rename(
         columns={
             "domain": "id",
             "combined_terms": "normalized_description",
+            "specific_terms": "specific_description",
             "full_terms": "full_descriptions",
             "significance_scores": "significance_scores",
         }

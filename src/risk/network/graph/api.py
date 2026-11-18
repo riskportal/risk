@@ -10,7 +10,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from ...annotation import define_top_annotation
+from ...annotation import define_top_annotation, get_word_rarity
 from ...log import log_header, logger, params
 from ...cluster import (
     define_domains,
@@ -144,6 +144,7 @@ class GraphAPI:
             top_annotation=top_annotation,
             min_cluster_size=min_cluster_size,
             max_cluster_size=max_cluster_size,
+            word_rarity=get_word_rarity(annotation["ordered_annotation"]),
         )
 
         # Resolve each node-domain association's contributing terms and paired raw statistics
