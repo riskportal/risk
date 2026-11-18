@@ -20,6 +20,8 @@ from ._nltk_setup import setup_nltk_resources
 
 # Annotation boilerplate that carries no meaning in a domain label
 BOILERPLATE_WORDS = {"via", "involved", "process"}
+# Number of words in a specific description
+SPECIFIC_LABEL_WORDS = 6
 
 
 def initialize_nltk():
@@ -235,38 +237,7 @@ def get_weighted_description(words_column: pd.Series, scores_column: pd.Series) 
     Returns:
         str: A coherent description formed from the most frequent and significant words.
     """
-    # Normalize significance scores to [0,1]. If all scores are identical, use 1.
-    if scores_column.max() == scores_column.min():
-        normalized_scores = pd.Series([1] * len(scores_column), index=scores_column.index)
-    else:
-        normalized_scores = (scores_column - scores_column.min()) / (
-            scores_column.max() - scores_column.min()
-        )
-
-    # Accumulate weighted counts for each token (after cleaning and lemmatization)
-    weighted_counts = {}
-    for phrase, score in zip(words_column, normalized_scores):
-        # Tokenize the phrase
-        tokens = word_tokenize(str(phrase))
-        # Determine the weight (scale factor; here multiplying normalized score by 10)
-        weight = max(1, int((0 if pd.isna(score) else score) * 10))
-        for token in tokens:
-            # Clean token: lowercase and remove extraneous punctuation (but preserve intra-word hyphens)
-            token_clean = re.sub(r"[^\w\-]", "", token).strip()
-            if not token_clean:
-                continue
-            # Skip stopwords, matching case-insensitively so capitalized terms are filtered too
-            if token_clean.lower() in STOP_WORDS:
-                continue
-            # Lemmatize the token to merge similar forms
-            token_norm = LEMMATIZER.lemmatize(token_clean)
-            # Apply weighting boost for biologically structured number-word hybrids
-            if re.match(r"^\d+[\-\w]+", token_norm):
-                actual_weight = int(weight * 1.5)
-            else:
-                actual_weight = weight
-            weighted_counts[token_norm] = weighted_counts.get(token_norm, 0) + actual_weight
-
+    weighted_counts = _get_weighted_counts(words_column, scores_column)
     # Reconstruct a weighted token list by repeating each token by its aggregated count.
     weighted_words = []
     for token, count in weighted_counts.items():
@@ -286,20 +257,150 @@ def get_weighted_description(words_column: pd.Series, scores_column: pd.Series) 
     return description
 
 
-def _simplify_word_list(words: List[str], threshold: float = 0.80) -> List[str]:
+def get_word_rarity(terms: List[str], min_terms: int = 30) -> Dict[str, float]:
+    """
+    Score how rare each word is across an annotation's terms, so that words shared by many terms
+    (e.g., "regulation") weigh less than words specific to a few.
+
+    Args:
+        terms (List[str]): The annotation terms, after the node-count filters.
+        min_terms (int, optional): Minimum number of terms needed for rarity to be meaningful.
+            Defaults to 30.
+
+    Returns:
+        Dict[str, float]: A dictionary mapping each word to its rarity, ln(terms / (1 + terms with
+            the word)) squared, floored at zero. Empty if there are fewer than `min_terms` terms.
+    """
+    num_terms = len(terms)
+    if num_terms < min_terms:
+        return {}
+
+    # Count the terms that contain each word
+    term_counts = Counter(word for term in terms for word in set(_tokenize_term(term)))
+    return {
+        word: max(0.0, float(np.log(num_terms / (1 + term_count)))) ** 2
+        for word, term_count in term_counts.items()
+    }
+
+
+def get_specific_description(
+    words_column: pd.Series, scores_column: pd.Series, word_rarity: Dict[str, float]
+) -> str:
+    """
+    Generate a description from the words that are specific to the given phrases, ordered as they
+    occur in the phrase that contains the most of them.
+
+    Args:
+        words_column (pd.Series): A pandas Series containing strings (phrases) to process.
+        scores_column (pd.Series): A pandas Series containing significance scores to weigh the terms.
+        word_rarity (Dict[str, float]): Rarity of each word, from `get_word_rarity`.
+
+    Returns:
+        str: The weighted description when `word_rarity` is empty or no word is specific, otherwise
+            the most specific words.
+    """
+    # Weigh each word by its rarity, dropping words that are shared by most terms
+    weighted_counts = _get_weighted_counts(words_column, scores_column)
+    specific_counts = {
+        word: count * word_rarity.get(word, 0.0)
+        for word, count in weighted_counts.items()
+        if count * word_rarity.get(word, 0.0) > 0
+    }
+    if not specific_counts:
+        return get_weighted_description(words_column, scores_column)
+
+    # Keep the heaviest words, one per group of near-duplicates, listed by weight
+    specific_words = _select_representative_words(specific_counts)[:SPECIFIC_LABEL_WORDS]
+    # Find the phrase that contains the most of them, preferring the higher score, then the earlier phrase
+    phrase_tokens = [_tokenize_term(phrase) for phrase in words_column]
+    scores = scores_column.fillna(float("-inf")).tolist()
+    best_index = max(
+        range(len(phrase_tokens)),
+        key=lambda i: (len(set(specific_words) & set(phrase_tokens[i])), scores[i], -i),
+    )
+    # Write the words as they occur in that phrase, then the rest by weight
+    ordered_words = [
+        word for word in dict.fromkeys(phrase_tokens[best_index]) if word in specific_words
+    ]
+    ordered_words += [word for word in specific_words if word not in ordered_words]
+
+    return " ".join(ordered_words)
+
+
+def _tokenize_term(term: str) -> List[str]:
+    """
+    Split an annotation term into its cleaned, lemmatized tokens, without stopwords.
+
+    Args:
+        term (str): The annotation term to tokenize.
+
+    Returns:
+        List[str]: The tokens in the order they occur in the term.
+    """
+    tokens = []
+    for token in word_tokenize(str(term)):
+        # Clean token: remove extraneous punctuation (but preserve intra-word hyphens)
+        token_clean = re.sub(r"[^\w\-]", "", token).strip()
+        if not token_clean:
+            continue
+        # Skip stopwords, matching case-insensitively so capitalized terms are filtered too
+        if token_clean.lower() in STOP_WORDS:
+            continue
+        # Lemmatize the token to merge similar forms
+        tokens.append(LEMMATIZER.lemmatize(token_clean))
+
+    return tokens
+
+
+def _get_weighted_counts(words_column: pd.Series, scores_column: pd.Series) -> Dict[str, int]:
+    """
+    Accumulate the significance-weighted count of each token across the phrases.
+
+    Args:
+        words_column (pd.Series): A pandas Series containing strings (phrases) to process.
+        scores_column (pd.Series): A pandas Series containing significance scores to weigh the terms.
+
+    Returns:
+        Dict[str, int]: A dictionary mapping each token to its aggregated weight.
+    """
+    # Normalize significance scores to [0,1]. If all scores are identical, use 1.
+    if scores_column.max() == scores_column.min():
+        normalized_scores = pd.Series([1] * len(scores_column), index=scores_column.index)
+    else:
+        normalized_scores = (scores_column - scores_column.min()) / (
+            scores_column.max() - scores_column.min()
+        )
+
+    # Accumulate weighted counts for each token (after cleaning and lemmatization)
+    weighted_counts = {}
+    for phrase, score in zip(words_column, normalized_scores):
+        # Determine the weight (scale factor; here multiplying normalized score by 10)
+        weight = max(1, int((0 if pd.isna(score) else score) * 10))
+        for token_norm in _tokenize_term(phrase):
+            # Apply weighting boost for biologically structured number-word hybrids
+            if re.match(r"^\d+[\-\w]+", token_norm):
+                actual_weight = int(weight * 1.5)
+            else:
+                actual_weight = weight
+            weighted_counts[token_norm] = weighted_counts.get(token_norm, 0) + actual_weight
+
+    return weighted_counts
+
+
+def _select_representative_words(
+    word_counts: Dict[str, float], threshold: float = 0.80
+) -> List[str]:
     """
     Filter out words that are too similar based on the Jaccard index,
     keeping the word with the higher aggregated count.
 
     Args:
-        words (List[str]): The list of tokens to be filtered.
+        word_counts (Dict[str, float]): A dictionary mapping each word to its aggregated count.
         threshold (float, optional): The similarity threshold for the Jaccard index. Defaults to 0.80.
 
     Returns:
-        List[str]: A list of filtered words, where similar words are reduced to the most frequent one.
+        List[str]: The kept words, ordered by descending count.
     """
-    # Count the occurrences (which reflect the weighted importance)
-    word_counts = Counter(words)
     filtered_words = []
     used_words = set()
 
@@ -321,6 +422,23 @@ def _simplify_word_list(words: List[str], threshold: float = 0.80) -> List[str]:
         filtered_words.append(best_word)
         used_words.update(similar_words)
 
+    return filtered_words
+
+
+def _simplify_word_list(words: List[str], threshold: float = 0.80) -> List[str]:
+    """
+    Filter out words that are too similar based on the Jaccard index,
+    keeping the word with the higher aggregated count.
+
+    Args:
+        words (List[str]): The list of tokens to be filtered.
+        threshold (float, optional): The similarity threshold for the Jaccard index. Defaults to 0.80.
+
+    Returns:
+        List[str]: A list of filtered words, where similar words are reduced to the most frequent one.
+    """
+    # Count the occurrences (which reflect the weighted importance)
+    filtered_words = _select_representative_words(Counter(words), threshold)
     # Preserve the original order (by frequency) from the filtered set
     final_words = [word for word in words if word in filtered_words]
 
