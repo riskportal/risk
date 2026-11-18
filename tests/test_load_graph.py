@@ -194,7 +194,7 @@ def test_cluster_size_limits_with_dict_annotation(risk_obj, cytoscape_network, d
             annotation=dict_annotation,
             stats_results=stats_results,
             tail="right",
-            pval_cutoff=0.05,
+            pval_cutoff=0.1,
             fdr_cutoff=1.0,
             display_prune_threshold=0.1,
             linkage_criterion="distance",
