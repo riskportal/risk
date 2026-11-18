@@ -14,6 +14,7 @@ from ..graph import Graph
 from ._utils import calculate_bounding_box, get_annotated_domain_colors, to_rgba
 
 TERM_DELIMITER = "::::"  # String used to separate multiple domain terms when constructing composite domain labels
+RING_TURNS = 24  # Starting angles tried for the label ring within one spacing between labels
 
 
 class Labels:
@@ -824,18 +825,41 @@ class Labels:
         Returns:
             Dict[int, Any]: Optimized positions for labels.
         """
+        # Place nothing when no domain is labeled
+        if not filtered_domain_centroids:
+            return {}
+
         num_domains = len(filtered_domain_centroids)
-        # Calculate equidistant positions around the center for initial label placement
-        equidistant_positions = self._calculate_equidistant_positions_around_center(
-            center, radius, offset, num_domains
-        )
-        # Create a mapping of domains to their initial label positions
-        label_positions = dict(zip(filtered_domain_centroids.keys(), equidistant_positions))
-        # Optimize the label positions to minimize distance to domain centroids
-        return self._optimize_label_positions(label_positions, filtered_domain_centroids)
+        spacing = 2 * np.pi / num_domains
+        best_label_positions: Dict[int, Any] = {}
+        shortest_distance = np.inf
+        # Turn the ring through one spacing, as the start of the equidistant positions is arbitrary
+        for turn in range(RING_TURNS):
+            # Calculate equidistant positions around the center for initial label placement
+            equidistant_positions = self._calculate_equidistant_positions_around_center(
+                center, radius, offset, num_domains, start_angle=turn * spacing / RING_TURNS
+            )
+            # Create a mapping of domains to their initial label positions
+            label_positions = dict(zip(filtered_domain_centroids.keys(), equidistant_positions))
+            # Optimize the label positions to minimize distance to domain centroids
+            label_positions = self._optimize_label_positions(
+                label_positions, filtered_domain_centroids
+            )
+            # Keep the turn that leaves the labels nearest their domains, the earliest on a tie
+            total_distance = self._calculate_total_distance(
+                label_positions, filtered_domain_centroids
+            )
+            if total_distance < shortest_distance:
+                best_label_positions, shortest_distance = label_positions, total_distance
+        return best_label_positions
 
     def _calculate_equidistant_positions_around_center(
-        self, center: Tuple[float, float], radius: float, label_offset: float, num_domains: int
+        self,
+        center: Tuple[float, float],
+        radius: float,
+        label_offset: float,
+        num_domains: int,
+        start_angle: float = 0.0,
     ) -> List[np.ndarray]:
         """
         Calculate positions around a center at equidistant angles.
@@ -845,12 +869,13 @@ class Labels:
             radius (float): The radius at which positions are calculated.
             label_offset (float): The offset added to the radius for label positioning.
             num_domains (int): The number of positions (or domains) to calculate.
+            start_angle (float, optional): The angle in radians of the first position. Defaults to 0.0.
 
         Returns:
             List[np.ndarray]: List of positions (as 2D numpy arrays) around the center.
         """
         # Calculate equidistant angles in radians around the center
-        angles = np.linspace(0, 2 * np.pi, num_domains, endpoint=False)
+        angles = start_angle + np.linspace(0, 2 * np.pi, num_domains, endpoint=False)
         # Compute the positions around the center using the angles
         return [
             center + (radius + label_offset) * np.array([np.cos(angle), np.sin(angle)])

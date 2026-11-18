@@ -426,6 +426,56 @@ def test_plot_labels(risk_obj, graph):
     assert plotter is not None  # Ensure the plotter is initialized
 
 
+def test_label_positions_turn_the_ring_to_shorten_the_total_distance(graph):
+    """
+    Test that turning the label ring leaves the labels nearer their domains than the unturned ring.
+
+    Args:
+        graph: The graph object whose labels are placed.
+    """
+    _, ax = plt.subplots()
+    try:
+        labeler = Labels(graph=graph, ax=ax)
+        rng = np.random.default_rng(0)
+        centroids = {domain: rng.normal(size=2) * 0.7 for domain in range(12)}
+        center, radius, offset = (0.0, 0.0), 1.0, 0.1
+
+        unturned = labeler._optimize_label_positions(
+            dict(
+                zip(
+                    centroids,
+                    labeler._calculate_equidistant_positions_around_center(
+                        center, radius, offset, len(centroids)
+                    ),
+                )
+            ),
+            centroids,
+        )
+        turned = labeler._calculate_best_label_positions(centroids, center, radius, offset)
+
+        assert labeler._calculate_total_distance(
+            turned, centroids
+        ) < labeler._calculate_total_distance(unturned, centroids)
+    finally:
+        plt.close("all")
+
+
+def test_label_positions_are_empty_without_labeled_domains(graph):
+    """
+    Test that no positions are calculated when no domain is labeled.
+
+    Args:
+        graph: The graph object whose labels are placed.
+    """
+    _, ax = plt.subplots()
+    try:
+        labeler = Labels(graph=graph, ax=ax)
+
+        assert labeler._calculate_best_label_positions({}, (0.0, 0.0), 1.0, 0.1) == {}
+    finally:
+        plt.close("all")
+
+
 def test_plot_sublabel(risk_obj, graph):
     """
     Test plotting a sublabel on the network using the plotter.
