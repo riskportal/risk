@@ -59,9 +59,9 @@ def compute_permutation_test(
         max_workers=max_workers,
     )
     # Compute p-values for depletion and enrichment
-    # If counts are 0, set p-value to 1/num_permutations to avoid zero p-values
-    depletion_pvals = np.maximum(counts_depletion, 1) / num_permutations
-    enrichment_pvals = np.maximum(counts_enrichment, 1) / num_permutations
+    # Count the observed score as one permutation so p-values are never zero
+    depletion_pvals = (counts_depletion + 1) / (num_permutations + 1)
+    enrichment_pvals = (counts_enrichment + 1) / (num_permutations + 1)
 
     return {
         "depletion_pvals": depletion_pvals,
