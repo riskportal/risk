@@ -92,13 +92,12 @@ class Labels:
                 to respect `max_chars_per_line` and `max_label_lines`. To supply exact multi-line formatting, join lines with "::::"
                 (e.g., "RNA splicing::::regulation"); strings containing "::::" are stored verbatim. Defaults to None.
             label_mode (str, optional): How domain labels are generated. Choose "compressed" for a weighted summary of the words
-                across a domain's terms, "top_term" for the domain's highest-scoring annotation term, kept verbatim, or "specific"
-                for the words that set the domain's terms apart from the rest of the annotation, ordered as in the term that contains
-                most of them. In "top_term" and "specific" modes, `words_to_omit`, `min_chars_per_line`, and `min_label_lines` do not
-                apply, as with `ids_to_labels`, which takes precedence in any mode. Defaults to "compressed".
+                across a domain's terms, or "top_term" for the domain's highest-scoring annotation term, kept verbatim. In "top_term"
+                mode, `words_to_omit`, `min_chars_per_line`, and `min_label_lines` do not apply, as with `ids_to_labels`, which takes
+                precedence in either mode. Defaults to "compressed".
 
         Raises:
-            ValueError: If `label_mode` is not "compressed", "top_term", or "specific".
+            ValueError: If `label_mode` is not "compressed" or "top_term".
             ValueError: If the number of provided `ids_to_keep` exceeds `max_labels`.
         """
         # Log the plotting parameters
@@ -131,10 +130,9 @@ class Labels:
         )
 
         # Validate label_mode before any label processing
-        if label_mode not in ("compressed", "top_term", "specific"):
+        if label_mode not in ("compressed", "top_term"):
             raise ValueError(
-                f"Invalid label_mode '{label_mode}'. "
-                "Allowed values are 'compressed', 'top_term', or 'specific'."
+                f"Invalid label_mode '{label_mode}'. Allowed values are 'compressed' or 'top_term'."
             )
 
         # Convert ids_to_keep to a tuple if it is not None
@@ -153,12 +151,6 @@ class Labels:
         # Label each domain with its top term; explicit ids_to_labels entries take precedence
         if label_mode == "top_term":
             ids_to_labels = {**self._get_top_term_labels(), **(ids_to_labels or {})}
-        # Label each domain with its most specific words; explicit ids_to_labels entries take precedence
-        if label_mode == "specific":
-            ids_to_labels = {
-                **self.graph.domain_id_to_specific_terms_map,
-                **(ids_to_labels or {}),
-            }
 
         # Calculate the center and radius of domains to position labels around the network
         domain_id_to_centroid_map = {}

@@ -14,7 +14,7 @@ from scipy.spatial.distance import pdist, squareform
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
-from risk.annotation import get_specific_description, get_weighted_description
+from risk.annotation import get_weighted_description
 
 from ..log import logger
 
@@ -197,8 +197,8 @@ def trim_domains(
         min_cluster_size (int, optional): Minimum size of a cluster to be retained. Defaults to 5.
         max_cluster_size (int, optional): Maximum size of a cluster to be retained. Defaults to 1000.
         word_rarity (Dict[str, float], optional): Rarity of each word across the annotation terms, used
-            to label domains with their specific words. Defaults to None (specific descriptions match
-            the normalized descriptions).
+            to weigh the words of a domain's description. Defaults to None (words are not weighed by
+            rarity).
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame]:
@@ -238,15 +238,7 @@ def trim_domains(
     )
     domain_labels["combined_terms"] = domain_labels.apply(
         lambda row: get_weighted_description(
-            pd.Series(row["full_terms"]), pd.Series(row["significance_scores"])
-        ),
-        axis=1,
-    )
-    domain_labels["specific_terms"] = domain_labels.apply(
-        lambda row: get_specific_description(
-            pd.Series(row["full_terms"]),
-            pd.Series(row["significance_scores"]),
-            word_rarity or {},
+            pd.Series(row["full_terms"]), pd.Series(row["significance_scores"]), word_rarity
         ),
         axis=1,
     )
@@ -256,7 +248,6 @@ def trim_domains(
         columns={
             "domain": "id",
             "combined_terms": "normalized_description",
-            "specific_terms": "specific_description",
             "full_terms": "full_descriptions",
             "significance_scores": "significance_scores",
         }

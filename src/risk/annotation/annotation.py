@@ -6,7 +6,7 @@ risk/annotation/annotation
 import re
 from collections import Counter
 from itertools import compress
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Set, Union
 
 import networkx as nx
 import numpy as np
@@ -20,7 +20,7 @@ from ._nltk_setup import setup_nltk_resources
 
 # Annotation boilerplate that carries no meaning in a domain label
 BOILERPLATE_WORDS = {"via", "involved", "process"}
-# Number of words in a specific description
+# Number of words in a description of specific words
 SPECIFIC_LABEL_WORDS = 6
 
 
@@ -225,7 +225,11 @@ def define_top_annotation(
     return annotation_significance_matrix
 
 
-def get_weighted_description(words_column: pd.Series, scores_column: pd.Series) -> str:
+def get_weighted_description(
+    words_column: pd.Series,
+    scores_column: pd.Series,
+    word_rarity: Union[Dict[str, float], None] = None,
+) -> str:
     """
     Generate a weighted description from words and their corresponding scores,
     using improved weighting logic with normalization, lemmatization, and aggregation.
@@ -233,11 +237,22 @@ def get_weighted_description(words_column: pd.Series, scores_column: pd.Series) 
     Args:
         words_column (pd.Series): A pandas Series containing strings (phrases) to process.
         scores_column (pd.Series): A pandas Series containing significance scores to weigh the terms.
+        word_rarity (Dict[str, float], optional): Rarity of each word across the annotation terms,
+            from `get_word_rarity`. When provided, words shared by many terms weigh less than words
+            specific to a few. Defaults to None (words are not weighed by rarity).
 
     Returns:
         str: A coherent description formed from the most frequent and significant words.
     """
     weighted_counts = _get_weighted_counts(words_column, scores_column)
+    # Describe the phrases by their specific words, if any word is specific
+    if word_rarity:
+        specific_description = _get_specific_description(
+            words_column, scores_column, weighted_counts, word_rarity
+        )
+        if specific_description:
+            return specific_description
+
     # Reconstruct a weighted token list by repeating each token by its aggregated count.
     weighted_words = []
     for token, count in weighted_counts.items():
@@ -283,8 +298,11 @@ def get_word_rarity(terms: List[str], min_terms: int = 30) -> Dict[str, float]:
     }
 
 
-def get_specific_description(
-    words_column: pd.Series, scores_column: pd.Series, word_rarity: Dict[str, float]
+def _get_specific_description(
+    words_column: pd.Series,
+    scores_column: pd.Series,
+    weighted_counts: Dict[str, int],
+    word_rarity: Dict[str, float],
 ) -> str:
     """
     Generate a description from the words that are specific to the given phrases, ordered as they
@@ -293,21 +311,20 @@ def get_specific_description(
     Args:
         words_column (pd.Series): A pandas Series containing strings (phrases) to process.
         scores_column (pd.Series): A pandas Series containing significance scores to weigh the terms.
+        weighted_counts (Dict[str, int]): The aggregated weight of each token across the phrases.
         word_rarity (Dict[str, float]): Rarity of each word, from `get_word_rarity`.
 
     Returns:
-        str: The weighted description when `word_rarity` is empty or no word is specific, otherwise
-            the most specific words.
+        str: The most specific words, or an empty string if no word is specific.
     """
     # Weigh each word by its rarity, dropping words that are shared by most terms
-    weighted_counts = _get_weighted_counts(words_column, scores_column)
     specific_counts = {
         word: count * word_rarity.get(word, 0.0)
         for word, count in weighted_counts.items()
         if count * word_rarity.get(word, 0.0) > 0
     }
     if not specific_counts:
-        return get_weighted_description(words_column, scores_column)
+        return ""
 
     # Keep the heaviest words, one per group of near-duplicates, listed by weight
     specific_words = _select_representative_words(specific_counts)[:SPECIFIC_LABEL_WORDS]
